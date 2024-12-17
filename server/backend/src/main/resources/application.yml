@@ -1,0 +1,72 @@
+
+spring:
+  autoconfigure:
+    exclude:
+      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
+
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database: mysql
+    show-sql: true
+    generate-ddl: true
+    hibernate:
+      ddl-auto: create
+
+  main:
+    allow-bean-definition-overriding: true
+
+
+  h2:
+    console:
+      enabled: false
+
+  security:
+    user:
+      name: user
+      password: 1234
+
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 74407077296-ftbsqe229a58370o4ivl7bq6hgsvcsef.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - email
+              - profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+
+
+
+
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
+
+
+cloud:
+  aws:
+    s3:
+      bucket: withers
+    stack:
+      auto: false
+    region:
+      static: ${S3_REGION}
+    credentials:
+      access-Key: ${S3_ACCESS_KEY}
+      secret-Key: ${S3_SECRET_KEY}
+
+
+translation:
+  langid:
+    url: "http://localhost:5001/detect"
+  opusmt:
+    url: "http://localhost:5001/translate"
+  cache:
+    ttl: 3600 # 캐시 유효시간 (초)
+
