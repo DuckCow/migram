@@ -1,4 +1,4 @@
-package com.example.withers_backend.web.service
+package com.example.backend.web.service
 
 import com.example.backend.web.model.User
 import com.example.backend.web.repository.FollowRepository

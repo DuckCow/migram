@@ -1,4 +1,4 @@
-package com.example.withers_backend.web.config
+package com.example.backend.web.config
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test

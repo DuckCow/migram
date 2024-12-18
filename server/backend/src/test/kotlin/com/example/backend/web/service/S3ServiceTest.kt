@@ -1,4 +1,4 @@
-package com.example.withers_backend.web.service
+package com.example.backend.web.service
 
 import com.example.backend.web.config.AwsConfig
 import com.example.backend.web.service.S3Service

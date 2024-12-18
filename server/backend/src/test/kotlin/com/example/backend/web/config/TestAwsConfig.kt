@@ -1,4 +1,4 @@
-package com.example.withers_backend.web.config
+package com.example.backend.web.config
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
