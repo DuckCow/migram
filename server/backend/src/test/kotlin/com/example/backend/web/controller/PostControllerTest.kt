@@ -1,4 +1,4 @@
-package com.example.withers_backend.web.controller
+package com.example.backend.web.controller
 
 import com.example.backend.WithersBackendApplication
 import org.junit.jupiter.api.Test

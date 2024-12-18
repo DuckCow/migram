@@ -58,6 +58,10 @@ dependencies {
 	runtimeOnly("com.mysql:mysql-connector-j")
 
 
+	testImplementation("org.junit.jupiter:junit-jupiter-api")
+	testImplementation("org.mockito:mockito-core")
+	testImplementation("org.mockito.kotlin:mockito-kotlin")
+	testImplementation("org.mockito:mockito-junit-jupiter")
 	testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
 	testImplementation("org.assertj:assertj-core")
 	testImplementation("com.h2database:h2")
