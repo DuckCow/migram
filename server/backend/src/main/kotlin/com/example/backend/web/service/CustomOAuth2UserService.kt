@@ -27,6 +27,8 @@ class CustomOAuth2UserService(private val userRepository : UserRepository) : Def
                 name = name,
                 email = email,
                 profilePicture = picture,
+                originCountry = null,
+                currentCountry = null,
                 roles = mutableSetOf(Role.USER)
             )
             userRepository.save(newUser)

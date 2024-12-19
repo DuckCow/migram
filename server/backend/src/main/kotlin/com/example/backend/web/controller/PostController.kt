@@ -1,8 +1,6 @@
 package com.example.backend.web.controller
 
-import com.example.backend.web.model.PostRequestDTO
-import com.example.backend.web.model.PostResponseDTO
-import com.example.backend.web.model.UserDTO
+import com.example.backend.web.model.*
 import com.example.backend.web.service.LikeService
 import com.example.backend.web.service.PostService
 import com.example.backend.web.service.UserService
@@ -93,4 +91,16 @@ class PostController(
     fun getPostLikeCount(@PathVariable postId: Long): ResponseEntity<Long> {
         return ResponseEntity.ok(likeService.getPostLikeCount(postId))
     }
+
+    @GetMapping("/country/{country}")
+    fun getPostsByCountry(
+        @PathVariable country: Country,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): Page<Post> {
+        return postService.getPostsByCountryWithPaging(country, page, size)
+    }
+
+
+
 }
