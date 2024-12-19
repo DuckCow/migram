@@ -8,12 +8,14 @@ fun Post.toResponseDTO(): PostResponseDTO {
         title = this.title,
         content = this.content,
         imageUrl = this.mediaUrl,
+        country= this.country,
         userDTO = this.user.toDTO(),
         /*
         createdAt = this.createdAt,
         */
         createdAt =this.modifiedAt ?: LocalDateTime.now(),
         createdBy = this.createdBy ?: "",
+
         modifiedAt = this.modifiedAt ?: LocalDateTime.now()
     )
 }
@@ -37,6 +39,8 @@ fun User.toDTO(): UserDTO {
         id = this.id,
         name = this.name,
         email = this.email,
-        profilePicture = this.profilePicture
+        profilePicture = this.profilePicture,
+        originCountry = this.originCountry,
+        currentCountry = this.currentCountry
     )
 }
