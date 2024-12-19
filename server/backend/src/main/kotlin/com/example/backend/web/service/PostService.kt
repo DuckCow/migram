@@ -6,6 +6,7 @@ import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.util.SecurityUtils
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -23,9 +24,11 @@ class PostService(
 
     fun findAll(pageable: Pageable): Page<PostResponseDTO> = postRepository.findAll(pageable).map { it.toResponseDTO() }
 
-    fun findByUserId(userId: Long, pageable: Pageable): Page<PostResponseDTO> = postRepository.findByUserId(userId, pageable).map { it.toResponseDTO() }
+    fun findByUserId(userId: Long, pageable: Pageable): Page<PostResponseDTO> =
+        postRepository.findByUserId(userId, pageable).map { it.toResponseDTO() }
 
-    fun findById(postId: Long): PostResponseDTO = postRepository.findById(postId).orElseThrow { EntityNotFoundException("Post not found") }.toResponseDTO()
+    fun findById(postId: Long): PostResponseDTO =
+        postRepository.findById(postId).orElseThrow { EntityNotFoundException("Post not found") }.toResponseDTO()
 
     fun save(postRequestDTO: PostRequestDTO, userId: Long): PostResponseDTO {
         val user = userRepository.findById(userId).orElseThrow { EntityNotFoundException("User not found") }
@@ -59,7 +62,6 @@ class PostService(
     }
 
 
-
     fun update(postId: Long, updatedPostRequestDTO: PostRequestDTO, userId: Long): PostResponseDTO {
         val existingPost = postRepository.findById(postId).orElseThrow { EntityNotFoundException("Post not found") }
         val user = userRepository.findById(userId).orElseThrow { EntityNotFoundException("User not found") }
@@ -82,4 +84,18 @@ class PostService(
 
         postRepository.delete(post)
     }
+
+    fun getPostsByCountry(country: Country): List<Post> {
+        return postRepository.findByCountry(country)
+    }
+
+    fun getPostsByCountryWithPaging(
+        country: Country,
+        page: Int,
+        size: Int
+    ): Page<Post> {
+        val pageable = PageRequest.of(page, size)
+        return postRepository.findByCountry(country, pageable)
+    }
+
 }
