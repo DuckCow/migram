@@ -7,12 +7,18 @@ import org.springframework.security.core.userdetails.UserDetails
 
 @Entity
 @Table(name = "users")
-data class User(
+data class User (
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
     val name: String,
     val email: String,
     val profilePicture: String?,
+
+    @Enumerated(EnumType.STRING)
+    val originCountry: Country?,
+
+    @Enumerated(EnumType.STRING)
+    val currentCountry: Country?,
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
@@ -49,7 +55,7 @@ data class User(
 
     override fun isEnabled(): Boolean = true
 
-    
+
 
 }
 
@@ -57,14 +63,18 @@ data class UserDTO(
     val id: Long,
     val name: String,
     val email: String,
-    val profilePicture: String?
+    val profilePicture: String?,
+    val originCountry: Country?,
+    val currentCountry: Country?
 ) {
     fun toEntity(): User {
         return User(
             id = this.id,
             name = this.name,
             email = this.email,
-            profilePicture = this.profilePicture
+            profilePicture = this.profilePicture,
+            originCountry = this.originCountry,
+            currentCountry = this.currentCountry
         )
     }
 }
