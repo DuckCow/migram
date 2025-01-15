@@ -14,7 +14,7 @@ import org.springframework.security.access.AccessDeniedException
 @Service
 class S3Service(
     private val s3Client: S3Client,
-    @Value("\${cloud.aws.s3.bucket}") private val bucket: String
+    @Value("\${cloud.aws.s3.bucket}")  val bucket: String
 ) {
     fun uploadFile(file: MultipartFile, fileName: String): String {
         try {
@@ -28,7 +28,7 @@ class S3Service(
                 .key("posts/$fileName")
                 .contentType(file.contentType)
                 .contentLength(file.size)
-                .acl(ObjectCannedACL.PUBLIC_READ)
+                //.acl(ObjectCannedACL.PUBLIC_READ)
                 .build()
 
             // 파일 업로드

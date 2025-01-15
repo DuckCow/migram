@@ -3,13 +3,15 @@ package com.example.backend.web.config
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 
 @Configuration
-class AwsConfig {
+@Profile("test")
+class TestAwsConfig {
     @Value("\${cloud.aws.credentials.access-key}")
     private lateinit var accessKey: String
 
@@ -18,6 +20,8 @@ class AwsConfig {
 
     @Bean
     fun s3Client(): S3Client {
+        println(accessKey);
+        println(secretKey);
         val credentials = AwsBasicCredentials.create(accessKey, secretKey)
         return S3Client.builder()
             .region(Region.AP_NORTHEAST_2)

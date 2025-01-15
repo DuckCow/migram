@@ -1,4 +1,5 @@
 flask==2.0.1
+werkzeug==2.0.3
 --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 torch
 transformers==4.9.2

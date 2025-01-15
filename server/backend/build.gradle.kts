@@ -19,15 +19,13 @@ repositories {
 	mavenCentral()
 }
 
+
 dependencies {
 
 
 	// Redis 캐싱 (선택사항)
 	//implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
-	// Opus-MT 번역기를 위한 의존성
-	implementation("com.github.opennmt:opennmt-core:2.3.0")
-	implementation("com.github.opennmt:opennmt-tokenizer:2.3.0")
 
 	// 언어 감지를 위한 의존성 (langid 대신 사용할 수 있는 라이브러리)
 	implementation("com.optimaize.languagedetector:language-detector:0.6")
@@ -58,6 +56,10 @@ dependencies {
 	runtimeOnly("com.mysql:mysql-connector-j")
 
 
+	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	testImplementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:3.0.1"))
+	testImplementation("io.awspring.cloud:spring-cloud-aws-starter")
+	testImplementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
 	testImplementation("org.junit.jupiter:junit-jupiter-api")
 	testImplementation("org.mockito:mockito-core")
 	testImplementation("org.mockito.kotlin:mockito-kotlin")
@@ -88,4 +90,9 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.test {
+	useJUnitPlatform()
+	systemProperty("spring.profiles.active", "test")
 }
