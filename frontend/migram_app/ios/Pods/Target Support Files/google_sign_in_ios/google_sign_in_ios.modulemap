@@ -1,4 +1,4 @@
-framework module google_sign_in_ios {
+module google_sign_in_ios {
   umbrella header "google_sign_in_ios-umbrella.h"
 
   export *
