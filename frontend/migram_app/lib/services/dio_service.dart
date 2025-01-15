@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+=import 'package:dio/dio.dart';
 
 class DioService {
   final Dio _dio = Dio();
@@ -8,19 +8,18 @@ class DioService {
     _dio.options.baseUrl = baseUrl;
     _dio.options.connectTimeout = const Duration(milliseconds: 5000);
     _dio.options.receiveTimeout = const Duration(milliseconds: 5000);
-
+    
     // 기본 헤더 설정
     _dio.options.headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-
+    
     // 인터셉터 설정 (선택사항)
     _dio.interceptors.add(LogInterceptor(responseBody: true));
   }
 
-  Future<Response> get(String path,
-      {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     try {
       final response = await _dio.get(path, queryParameters: queryParameters);
       return response;
