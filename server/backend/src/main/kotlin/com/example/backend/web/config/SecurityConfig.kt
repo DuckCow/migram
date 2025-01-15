@@ -22,13 +22,13 @@ class SecurityConfig {
     lateinit var customOAuth2UserService: CustomOAuth2UserService
 
     @Bean
-    @Profile("!test")
+    @Profile("!test") // 프로덕션 환경용 SecurityFilterChain
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    .requestMatchers("/login", "/oauth2/**", "/login/**").permitAll()  // Allow access to login pages
+                    .requestMatchers("/login", "/oauth2/**", "/login/**").permitAll()
                     .requestMatchers("/posts").authenticated()
                     .anyRequest().permitAll()
             }
@@ -42,7 +42,6 @@ class SecurityConfig {
                     .authorizationEndpoint { authorization ->
                         authorization.baseUri("/oauth2/authorization")
                     }
-
             }
             .logout{ logout ->
                 logout
@@ -53,6 +52,18 @@ class SecurityConfig {
         return http.build()
     }
 
+    @Bean
+    @Profile("test") // 테스트 환경용 SecurityFilterChain
+    fun testSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .csrf { it.disable() }
+            .authorizeHttpRequests { authorize ->
+                authorize.anyRequest().permitAll()
+            }
+        return http.build()
+    }
+
+    // 나머지 빈들은 모든 환경에서 사용 가능하도록 프로필 없이 유지
     @Bean
     fun userDetailsService(): UserDetailsService {
         val userDetailsService = InMemoryUserDetailsManager()
@@ -68,25 +79,5 @@ class SecurityConfig {
     fun passwordEncoder(): PasswordEncoder {
         return BCryptPasswordEncoder()
     }
-
-
-
-    //test용 config
-
-    @Bean
-    @Profile("test")
-    fun testSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
-        http.csrf { it.disable() }
-            .authorizeHttpRequests { authorize ->
-                authorize
-                    .anyRequest().permitAll()
-            }
-        return http.build()
-    }
-
-
-
 }
-
-
 

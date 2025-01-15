@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "755457F3785F4D2E55FCAFA408242FD5"
-               BuildableName = "webview_flutter_wkwebview.framework"
+               BuildableName = "libwebview_flutter_wkwebview.a"
                BlueprintName = "webview_flutter_wkwebview"
                ReferencedContainer = "container:Pods.xcodeproj">
             </BuildableReference>
