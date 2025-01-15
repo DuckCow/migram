@@ -1,7 +1,6 @@
 package com.example.backend.web.service
 
-import com.example.backend.web.config.AwsConfig
-import com.example.backend.web.service.S3Service
+
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,12 +18,10 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
-@SpringBootTest(classes = [S3Service::class, com.example.backend.web.config.AwsConfig::class])
+@SpringBootTest(
+    classes = [S3Service::class, com.example.backend.web.config.TestAwsConfig::class])
 @AutoConfigureMockMvc(addFilters = false)
-@TestPropertySource(properties = [
-    "spring.security.enabled=false",
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration"
-])
+@ActiveProfiles("test")
 class S3ServiceIntegrationTest {
     @Autowired
     private lateinit var s3Service: S3Service
@@ -33,6 +30,7 @@ class S3ServiceIntegrationTest {
 
     @Test
     fun `실제 S3 파일 업로드 및 삭제 테스트`() {
+
         // Given
         // SecurityContext 설정
         val authentication = TestingAuthenticationToken("user", "password", "ROLE_USER")
