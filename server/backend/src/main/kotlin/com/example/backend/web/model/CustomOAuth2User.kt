@@ -11,7 +11,9 @@ class CustomOAuth2User(private val user: com.example.backend.web.model.User) : O
         "id" to user.id,
         "email" to user.email,
         "name" to user.name,
-        "picture" to (user.profilePicture ?: "")
+        "picture" to (user.profilePicture ?: ""),
+        "originCountry" to (user.originCountry?.name ?: ""),
+        "currentCountry" to (user.currentCountry?.name ?: "")
     )
 
     override fun getAuthorities(): Collection<GrantedAuthority> =
@@ -21,5 +23,13 @@ class CustomOAuth2User(private val user: com.example.backend.web.model.User) : O
     fun getUser(): com.example.backend.web.model.User = user
 
     // 역할 확인을 위한 편의 메서드 추가
-    fun hasRole(role: com.example.backend.web.model.Role): Boolean = user.roles.contains(role)
+
+    // originCountry와 currentCountry를 직접 접근할 수 있는 프로퍼티 추가
+    val originCountry: Country?
+        get() = user.originCountry
+
+    val currentCountry: Country?
+        get() = user.currentCountry
+
+    fun hasRole(role: Role): Boolean = user.roles.contains(role)
 }

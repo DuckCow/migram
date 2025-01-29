@@ -45,5 +45,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+	<dict>
+	<!-- 여기부터 -->
+	<key>CFBundleURLSchemes</key>
+	<array>
+	<string>migram</string>  <!-- 앱의 커스텀 URL 스킴 -->
+	</array>
+	</dict>
+	</array>
+	<!-- 여기까지 -->
 </dict>
 </plist>

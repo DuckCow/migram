@@ -15,10 +15,10 @@ data class User (
     val profilePicture: String?,
 
     @Enumerated(EnumType.STRING)
-    val originCountry: Country?,
+    var originCountry: Country?,
 
     @Enumerated(EnumType.STRING)
-    val currentCountry: Country?,
+    var currentCountry: Country?,
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
