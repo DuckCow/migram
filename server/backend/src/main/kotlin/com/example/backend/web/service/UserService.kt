@@ -35,4 +35,11 @@ class UserService(private val userRepository: UserRepository) {
     }
 
     fun findEntityById(userId: Long): User? = userRepository.findById(userId).orElse(null)
+    fun updateUserCountries(userId: Long, originCountry: Country?, currentCountry: Country?) {
+        val user = findEntityById(userId) ?: throw IllegalArgumentException("User not found with id: $userId")
+        user.originCountry=originCountry;
+        user.currentCountry=currentCountry;
+
+
+    }
 }
