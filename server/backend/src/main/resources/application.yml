@@ -1,5 +1,5 @@
 server:
-  port: 443
+  port: 8080
 
 #  ssl:
 #    enabled: true
@@ -39,8 +39,8 @@ spring:
       client:
         registration:
           google:
-            client-id: 74407077296-ftbsqe229a58370o4ivl7bq6hgsvcsef.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - email
               - profile
