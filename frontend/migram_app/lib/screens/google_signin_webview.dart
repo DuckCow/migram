@@ -19,26 +19,31 @@ class _GoogleSignInWebViewState extends State<GoogleSignInWebView> {
   @override
   void initState() {
     super.initState();
+    print('Loading URL: ${widget.loginUrl}'); // URL 디버깅용
+
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // User Agent 설정 추가
+      ..setUserAgent(
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) {
-            // 로그인 성공 후 리다이렉트 URL 확인
+            print('Navigation request to: ${request.url}'); // 네비게이션 디버깅용
             if (request.url.contains('loginSuccess')) {
-              Navigator.of(context).pop(true); // 성공
+              Navigator.of(context).pop(true);
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
           },
           onPageFinished: (String url) {
             if (url.contains('error=true')) {
-              Navigator.of(context).pop(false); // 실패
+              Navigator.of(context).pop(false);
             }
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.loginUrl));
+      ..loadRequest(Uri.parse(widget.loginUrl)); // widget.loginUrl을 직접 사용
   }
 
   @override

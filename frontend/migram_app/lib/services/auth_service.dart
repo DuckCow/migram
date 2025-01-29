@@ -8,11 +8,14 @@ class AuthService {
 
   Future<bool> checkProfileStatus() async {
     try {
+      print('Checking profile status...'); // 디버깅 로그
       final response = await _dioService.get('/api/user/check-profile');
+      print('Profile response: ${response.data}'); // 응답 확인
       final data = response.data;
-      return data['isProfileComplete'];
+      return data['isProfileComplete'] ?? false;
     } catch (e) {
-      throw Exception('Failed to check profile status: ${e.toString()}');
+      print('Profile check error: $e'); // 에러 로그
+      rethrow; // 에러를 상위로 전파
     }
   }
 
