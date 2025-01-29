@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:migram_app/screens/google_signin_webview.dart';
 import 'package:migram_app/services/auth_service.dart';
 import 'package:migram_app/services/dio_service.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -9,18 +10,17 @@ class LoginScreen extends StatelessWidget {
   Future<void> _handleGoogleSignIn(BuildContext context) async {
     try {
       final String loginUrl = DioService().getLoginUrl();
+      print('Login URL: $loginUrl');
 
-      final result = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GoogleSignInWebView(loginUrl: loginUrl),
-        ),
-      );
-
-      if (result == true && context.mounted) {
-        handleLoginSuccess(context);
+      final Uri url = Uri.parse(loginUrl);
+      if (await url_launcher.canLaunchUrl(url)) {
+        await url_launcher.launchUrl(
+          url,
+          mode: url_launcher.LaunchMode.externalApplication,
+        );
       }
     } catch (e) {
+      print('Login error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그인 중 오류가 발생했습니다')),
