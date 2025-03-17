@@ -49,12 +49,17 @@
 	<array>
 	<dict>
 	<!-- 여기부터 -->
-	<key>CFBundleURLSchemes</key>
-	<array>
-	<string>migram</string>  <!-- 앱의 커스텀 URL 스킴 -->
-	</array>
+	<key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLName</key>
+        <string>com.example.migram</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>migram</string>
+        </array>
+	<!-- 여기까지 -->
 	</dict>
 	</array>
-	<!-- 여기까지 -->
+	
 </dict>
 </plist>
