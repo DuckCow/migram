@@ -13,13 +13,34 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
 
+
     @Autowired
     lateinit var customOAuth2UserService: CustomOAuth2UserService
+
+    // OAuth2 성공 핸들러 추가
+    @Bean
+    fun oauth2SuccessHandler(): AuthenticationSuccessHandler {
+        return AuthenticationSuccessHandler { request, response, authentication ->
+            val userAgent = request.getHeader("User-Agent")
+            if (userAgent != null && (userAgent.contains("Android") || userAgent.contains("iOS"))) {
+                // 앱에서 요청한 경우 앱 스키마로 리디렉션
+                response.sendRedirect("migram://oauth/callback")
+            } else {
+                response.sendRedirect("migram://oauth/callback")
+                /*
+                // 웹에서 요청한 경우 웹 페이지로 리디렉션
+                response.sendRedirect("/loginSuccess")
+
+                 */
+            }
+        }
+    }
 
     @Bean
     @Profile("!test") // 프로덕션 환경용 SecurityFilterChain
@@ -37,7 +58,7 @@ class SecurityConfig {
                     .userInfoEndpoint { userInfo ->
                         userInfo.userService(customOAuth2UserService)
                     }
-                    .defaultSuccessUrl("/loginSuccess", true)
+                    .successHandler(oauth2SuccessHandler()) // 여기에 핸들러 추가
                     .failureUrl("/login?error=true")
                     .authorizationEndpoint { authorization ->
                         authorization.baseUri("/oauth2/authorization")

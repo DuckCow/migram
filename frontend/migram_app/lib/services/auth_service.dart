@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:migram_app/screens/country_selectionScreen.dart';
+import 'package:migram_app/screens/country_selection_screen.dart';
 import 'package:migram_app/screens/main_screen.dart';
 import 'package:migram_app/services/dio_service.dart';
 

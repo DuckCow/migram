@@ -1,13 +1,69 @@
+// screens/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:migram_app/screens/google_signin_webview.dart';
-import 'package:migram_app/services/auth_service.dart';
-import 'package:migram_app/services/dio_service.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import '../services/dio_service.dart';
+import '../services/token_service.dart';
+import '../services/user_service.dart';
+import 'country_selection_screen.dart';
+import 'main_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  Future<void> _handleGoogleSignIn(BuildContext context) async {
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    try {
+      final accessToken = await TokenService().getAccessToken();
+
+      if (accessToken == null) {
+        // 로그인되지 않은 경우
+        setState(() {
+          _isLoading = false;
+        });
+        print("is not login");
+        return;
+      }
+      print("is login");
+
+      // 로그인된 경우, 사용자 프로필 정보 확인
+      final userService = UserService();
+      final profileStatus = await userService.checkUserProfile();
+
+      if (context.mounted) {
+        if (profileStatus.isProfileComplete) {
+          // 국가 설정이 완료된 경우
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
+        } else {
+          // 국가 설정이 필요한 경우
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+                builder: (context) => const CountrySelectionScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error checking login status: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
     try {
       final String loginUrl = DioService().getLoginUrl();
       print('Login URL: $loginUrl');
@@ -31,6 +87,14 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -51,7 +115,7 @@ class LoginScreen extends StatelessWidget {
 
                 // 구글 로그인 버튼
                 InkWell(
-                  onTap: () => _handleGoogleSignIn(context),
+                  onTap: _handleGoogleSignIn,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
