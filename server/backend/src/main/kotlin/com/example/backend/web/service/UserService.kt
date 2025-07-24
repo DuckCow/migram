@@ -35,6 +35,16 @@ class UserService(private val userRepository: UserRepository) {
     }
 
     fun findEntityById(userId: Long): User? = userRepository.findById(userId).orElse(null)
+
+    // findByEmail 메서드 추가 - DTO 반환
+    fun findByEmail(email: String): UserDTO? {
+        return userRepository.findByEmail(email)?.toDTO()
+    }
+
+    // findByEmail 메서드 추가 - Entity 반환 (JWT 인증에서 사용)
+    fun findEntityByEmail(email: String): User? {
+        return userRepository.findByEmail(email)
+    }
     fun updateUserCountries(userId: Long, originCountry: Country?, currentCountry: Country?) {
         val user = findEntityById(userId) ?: throw IllegalArgumentException("User not found with id: $userId")
         user.originCountry=originCountry;

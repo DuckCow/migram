@@ -1,4 +1,6 @@
 // screens/login_screen.dart
+
+// screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../services/dio_service.dart';
@@ -14,16 +16,36 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    print("LoginScreen initState called"); // 디버깅 로그
+    WidgetsBinding.instance.addObserver(this);
     _checkLoginStatus();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // 앱이 포그라운드로 돌아올 때 호출
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    print('App lifecycle changed to: $state');
+    if (state == AppLifecycleState.resumed) {
+      print('App resumed, checking login status...');
+      // 앱이 다시 활성화될 때 로그인 상태 확인
+      _checkLoginStatus();
+    }
+  }
+
   Future<void> _checkLoginStatus() async {
+    print("Checking login status..."); // 디버깅 로그
     try {
       final accessToken = await TokenService().getAccessToken();
 
@@ -44,11 +66,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (context.mounted) {
         if (profileStatus.isProfileComplete) {
           // 국가 설정이 완료된 경우
+          print("Navigating to MainScreen");
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const MainScreen()),
           );
         } else {
           // 국가 설정이 필요한 경우
+          print("Navigating to CountrySelectionScreen");
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
                 builder: (context) => const CountrySelectionScreen()),
@@ -87,6 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print("LoginScreen build method called"); // 디버깅 로그
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(
@@ -103,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Migram 로고나 텍스트
                 const Text(
                   'Migram',
                   style: TextStyle(
@@ -112,8 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 50),
-
-                // 구글 로그인 버튼
                 InkWell(
                   onTap: _handleGoogleSignIn,
                   child: Container(
@@ -125,15 +148,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset(
-                          'assets/images/google_logo.png', // 구글 로고 이미지 필요
-                          height: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
+                        Icon(Icons.login, size: 24),
+                        SizedBox(width: 12),
+                        Text(
                           'Google 계정으로 로그인',
                           style: TextStyle(
                             fontSize: 16,

@@ -1,11 +1,29 @@
 // services/user_service.dart
+import 'package:dio/dio.dart';
+import 'package:migram_app/services/token_service.dart';
+
 import 'dio_service.dart';
 
 class UserService {
   Future<ProfileStatus> checkUserProfile() async {
     try {
-      final response = await DioService().get('/api/user/check-profile');
-      return ProfileStatus.fromJson(response.data);
+      final accessToken = await TokenService().getAccessToken();
+      if (accessToken == null) {
+        throw Exception('No access token found');
+      }
+
+      final response = await DioService().get(
+        '/auth/profile',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        ),
+      );
+
+      return ProfileStatus(
+        isProfileComplete: response.data['isProfileComplete'] ?? false,
+      );
     } catch (e) {
       print('Error checking user profile: $e');
       rethrow;

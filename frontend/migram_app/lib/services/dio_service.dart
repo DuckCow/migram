@@ -30,19 +30,16 @@ class DioService {
     _isInitialized = true;
   }
 
-  Future<Response> get(String path,
-      {Map<String, dynamic>? queryParameters}) async {
-    if (!_isInitialized) initialize();
-
+  Future<Response> get(String path, {Options? options}) async {
     try {
-      print('Making GET request to: ${_dio.options.baseUrl}$path');
-      final response = await _dio.get(path, queryParameters: queryParameters);
-      print('Response: ${response.data}');
+      final response = await _dio.get(
+        path,
+        options: options,
+      );
       return response;
-    } on DioException catch (e) {
-      print('Dio error: ${e.message}');
-      print('Dio error response: ${e.response?.data}');
-      throw _handleError(e);
+    } catch (e) {
+      print('GET request error: $e');
+      rethrow;
     }
   }
 

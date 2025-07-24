@@ -13,22 +13,40 @@ class CountrySelectionScreen extends StatefulWidget {
 class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
   String? selectedOriginCountry;
   String? selectedCurrentCountry;
-  List<String> countries = []; // 실제로는 API에서 가져온 국가 목록을 사용
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCountries();
-  }
+  List<Map<String, String>> countries = []; // Map으로 변경
+  bool isLoading = true;
 
   Future<void> _loadCountries() async {
     try {
+      print('Loading countries...');
       final response = await DioService().get('/api/countries');
+      print('Countries response: ${response.data}');
+
+      final countryList = response.data as List;
+      final countryData = <Map<String, String>>[];
+
+      for (var country in countryList) {
+        if (country is Map<String, dynamic>) {
+          countryData.add({
+            'code': country['code'] as String,
+            'displayName': country['displayName'] as String,
+          });
+        }
+      }
+
+      // displayName으로 정렬
+      countryData
+          .sort((a, b) => a['displayName']!.compareTo(b['displayName']!));
+
       setState(() {
-        countries = List<String>.from(response.data);
+        countries = countryData;
+        isLoading = false;
       });
     } catch (e) {
       print('Error loading countries: $e');
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -41,10 +59,14 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
     }
 
     try {
-      await DioService().post('/api/user/countries', data: {
-        'originCountry': selectedOriginCountry,
-        'currentCountry': selectedCurrentCountry,
-      });
+      // enum 코드로 전송
+      final requestData = {
+        'originCountry': selectedOriginCountry, // 이제 enum 코드
+        'currentCountry': selectedCurrentCountry, // 이제 enum 코드
+      };
+      print('Sending country data: $requestData');
+
+      await DioService().put('/api/user/countries', data: requestData);
 
       if (context.mounted) {
         Navigator.of(context).pushReplacement(
@@ -67,65 +89,67 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
       appBar: AppBar(
         title: const Text('국가 선택'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '출신 국가',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButton<String>(
-              isExpanded: true,
-              hint: const Text('출신 국가를 선택하세요'),
-              value: selectedOriginCountry,
-              onChanged: (value) {
-                setState(() {
-                  selectedOriginCountry = value;
-                });
-              },
-              items: countries.map((country) {
-                return DropdownMenuItem<String>(
-                  value: country,
-                  child: Text(country),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              '현재 국가',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButton<String>(
-              isExpanded: true,
-              hint: const Text('현재 국가를 선택하세요'),
-              value: selectedCurrentCountry,
-              onChanged: (value) {
-                setState(() {
-                  selectedCurrentCountry = value;
-                });
-              },
-              items: countries.map((country) {
-                return DropdownMenuItem<String>(
-                  value: country,
-                  child: Text(country),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveCountries,
-                child: const Text('저장'),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '출신 국가',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Text('출신 국가를 선택하세요'),
+                    value: selectedOriginCountry,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedOriginCountry = value;
+                      });
+                    },
+                    items: countries.map((country) {
+                      return DropdownMenuItem<String>(
+                        value: country['code'], // enum 코드를 value로 사용
+                        child: Text(country['displayName']!), // 표시명은 그대로
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '현재 국가',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Text('현재 국가를 선택하세요'),
+                    value: selectedCurrentCountry,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedCurrentCountry = value;
+                      });
+                    },
+                    items: countries.map((country) {
+                      return DropdownMenuItem<String>(
+                        value: country['code'], // enum 코드를 value로 사용
+                        child: Text(country['displayName']!), // 표시명은 그대로
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveCountries,
+                      child: const Text('저장'),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
