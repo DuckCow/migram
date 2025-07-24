@@ -27,6 +27,10 @@ dependencies {
 	//implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
 
+	implementation("io.jsonwebtoken:jjwt-api:0.12.3")
+	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3") // JSON 처리를 위함
+
 	// 언어 감지를 위한 의존성 (langid 대신 사용할 수 있는 라이브러리)
 	implementation("com.optimaize.languagedetector:language-detector:0.6")
 
