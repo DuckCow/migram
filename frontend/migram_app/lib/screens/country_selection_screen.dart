@@ -17,6 +17,12 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
   List<Map<String, String>> countries = []; // Map으로 변경
   bool isLoading = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
+
   Future<void> _loadCountries() async {
     try {
       print('Loading countries...');
