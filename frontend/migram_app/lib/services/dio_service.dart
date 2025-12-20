@@ -8,8 +8,11 @@ class DioService {
   final Dio _dio = Dio();
   bool _isInitialized = false;
 
-  final String baseUrl =
-      Platform.isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
+  // iOS 시뮬레이터/기기는 Mac의 로컬 IP 사용
+  // Android 에뮬레이터는 10.0.2.2 사용 (호스트 머신 접근용)
+  final String baseUrl = Platform.isAndroid
+      ? 'http://10.0.2.2:8080'
+      : 'http://192.168.219.118:8080'; // Mac 로컬 IP
 
   DioService._internal();
 
