@@ -113,10 +113,11 @@ class SecurityConfig {
                         AntPathRequestMatcher("/login"),
                         AntPathRequestMatcher("/oauth2/**"),
                         AntPathRequestMatcher("/login/**"),
-                        AntPathRequestMatcher("/h2-console/**")
+                        AntPathRequestMatcher("/h2-console/**"),
+                        AntPathRequestMatcher("/auth/token") // 토큰 교환은 인증 불필요
                     ).permitAll()
                     .requestMatchers(
-                        AntPathRequestMatcher("/auth/**"),
+                        AntPathRequestMatcher("/auth/profile"), // 프로필 확인은 인증 필요
                         AntPathRequestMatcher("/posts")
                     ).authenticated()
                     .anyRequest().permitAll()
