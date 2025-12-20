@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:migram_app/screens/country_selection_screen.dart';
 import 'package:migram_app/screens/login_screen.dart';
+import 'package:migram_app/screens/main_screen.dart';
 import 'package:migram_app/services/dio_service.dart';
 import 'package:migram_app/services/token_service.dart';
+import 'package:migram_app/services/user_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
@@ -14,9 +17,6 @@ import 'dart:async';
 Future<void> main() async {
   print('=== App starting ===');
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 플랫폼별 WebView 설정
-  late final WebViewController controller;
 
   print('About to initialize AppLinks...');
   // DeepLink 초기 설정
@@ -40,7 +40,10 @@ Future<void> initAppLinks() async {
     print('Checking for initial link...');
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
+      print('Initial link found: $initialUri');
       handleDeepLink(initialUri);
+    } else {
+      print('No initial link found');
     }
   } catch (e) {
     print('Error getting initial URI: $e');
@@ -48,71 +51,113 @@ Future<void> initAppLinks() async {
 
   // 앱이 실행 중일 때의 딥링크 처리
   _linkSubscription = _appLinks.uriLinkStream.listen((Uri uri) {
+    print('Deep link received while app running: $uri');
     handleDeepLink(uri);
   }, onError: (error) {
     print('Error handling deeplink: $error');
   });
 }
 
-// DeepLink 처리 함수 (기존과 동일)
 void handleDeepLink(Uri uri) async {
   print('=== handleDeepLink called ===');
   print('Full URI: $uri');
   print('URI path: ${uri.path}');
   print('URI query parameters: ${uri.queryParameters}');
 
-  if (uri.path == '/callback') {
-    // 이 부분 수정!
+  // '/callback' 또는 '/oauth/callback' 둘 다 처리
+  if (uri.path == '/callback' || uri.path == '/oauth/callback') {
     print('OAuth callback path matched');
+    final code = uri.queryParameters['code'];
 
-    // 에러 체크
-    final error = uri.queryParameters['error'];
-    if (error != null) {
-      print('OAuth error received: $error');
-      return;
-    }
+    print('Authorization code received: ${code != null}');
 
-    // 토큰 체크
-    final accessToken = uri.queryParameters['access_token'];
-    final refreshToken = uri.queryParameters['refresh_token'];
-
-    print('Access token received: ${accessToken != null}');
-    print('Refresh token received: ${refreshToken != null}');
-
-    if (accessToken != null && refreshToken != null) {
-      print('Both tokens received, saving...');
-
+    if (code != null) {
       try {
-        await TokenService().saveTokens(
-          accessToken: accessToken,
-          refreshToken: refreshToken,
+        print('Authorization code received, exchanging for tokens...');
+
+        // Authorization code를 토큰으로 교환
+        final dioService = DioService();
+        final response = await dioService.post(
+          '/auth/token',
+          data: {'code': code},
         );
 
-        print('Tokens saved successfully');
+        print('Token exchange response: ${response.statusCode}');
 
-        // 저장 확인
-        final savedAccessToken = await TokenService().getAccessToken();
-        print('Token saved verification: ${savedAccessToken != null}');
+        if (response.statusCode == 200) {
+          final data = response.data;
+          final accessToken = data['accessToken'];
+          final refreshToken = data['refreshToken'];
 
-        print('Navigating to LoginScreen for status check');
+          if (accessToken != null && refreshToken != null) {
+            print('Tokens received, saving...');
+
+            // 토큰 저장
+            await TokenService().saveTokens(
+              accessToken: accessToken,
+              refreshToken: refreshToken,
+            );
+            print('Tokens saved successfully');
+
+            // 토큰 저장 확인
+            final savedToken = await TokenService().getAccessToken();
+            print('Token saved verification: ${savedToken != null}');
+
+            print('Checking user profile...');
+            // 프로필 상태 직접 확인
+            final userService = UserService();
+            final profileStatus = await userService.checkUserProfile();
+            print('Profile complete: ${profileStatus.isProfileComplete}');
+
+            // 네비게이터가 준비될 때까지 대기
+            await Future.delayed(const Duration(milliseconds: 100));
+
+            // 적절한 화면으로 직접 이동
+            if (profileStatus.isProfileComplete) {
+              print('Navigating to MainScreen');
+              navigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const MainScreen()),
+                (route) => false,
+              );
+            } else {
+              print('Navigating to CountrySelectionScreen');
+              navigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(
+                    builder: (context) => const CountrySelectionScreen()),
+                (route) => false,
+              );
+            }
+          } else {
+            throw Exception('Tokens not found in response');
+          }
+        } else {
+          throw Exception('Token exchange failed: ${response.statusCode}');
+        }
+      } catch (e) {
+        print('Error in handleDeepLink: $e');
+        if (e is DioException) {
+          print('Dio error response: ${e.response?.data}');
+          print('Dio error statusCode: ${e.response?.statusCode}');
+        }
+        // 에러 발생시 LoginScreen으로
         navigatorKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
         );
-      } catch (e) {
-        print('Error saving tokens: $e');
       }
     } else {
-      print('Tokens missing in callback');
-      print('Access token: $accessToken');
-      print('Refresh token: $refreshToken');
+      print('Authorization code missing, redirecting to LoginScreen');
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
     }
   } else {
-    print('Path does not match /oauth/callback: ${uri.path}');
+    print('Not an OAuth callback (path: ${uri.path}), ignoring');
   }
 }
 
-// 전역 네비게이터 키 (DeepLink로 돌아왔을 때 화면 전환을 위함)
+// 전역 네비게이터 키
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatefulWidget {
@@ -134,7 +179,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Migram',
-      navigatorKey: navigatorKey, // 이 줄 추가!
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

@@ -1,7 +1,9 @@
 package com.example.backend.web.config
 
+import com.example.backend.web.model.CustomOAuth2User
 import com.example.backend.web.model.jwt.JwtAuthenticationFilter
 import com.example.backend.web.model.jwt.JwtTokenProvider
+import com.example.backend.web.service.AuthorizationCodeService
 import com.example.backend.web.service.CustomOAuth2UserService
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,27 +31,35 @@ class SecurityConfig {
     lateinit var customOAuth2UserService: CustomOAuth2UserService
 
     @Autowired
-    lateinit var jwtTokenProvider: JwtTokenProvider // 추가
+    lateinit var jwtTokenProvider: JwtTokenProvider
 
     @Autowired
     lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
 
+    @Autowired
+    lateinit var authorizationCodeService: AuthorizationCodeService
 
 
 
-    // OAuth2 성공 핸들러 추가
+
+    // OAuth2 성공 핸들러 - Authorization Code 방식으로 개선
     @Bean
     fun oauth2SuccessHandler(): AuthenticationSuccessHandler {
         return AuthenticationSuccessHandler { request, response, authentication ->
             println("=== OAuth2 authentication successful ===")
 
             try {
-                val accessToken = jwtTokenProvider.generateAccessToken(authentication)
-                val refreshToken = jwtTokenProvider.generateRefreshToken(authentication)
+                // CustomOAuth2User에서 이메일 추출
+                val oauth2User = authentication.principal as CustomOAuth2User
+                val email = oauth2User.getUser().email
 
-                println("Tokens generated successfully")
+                // 일회용 authorization code 생성 (5분간 유효)
+                val authorizationCode = authorizationCodeService.generateCode(email)
 
-                val deepLinkUrl = "migram://oauth/callback?access_token=$accessToken&refresh_token=$refreshToken"
+                println("Authorization code generated successfully for: $email")
+
+                // 딥링크에는 code만 포함 (토큰 노출 방지)
+                val deepLinkUrl = "migram://oauth/callback?code=$authorizationCode"
                 println("Deep link URL: $deepLinkUrl")
 
                 // HTML 페이지로 응답
@@ -71,7 +81,7 @@ class SecurityConfig {
                             setTimeout(function() {
                                 window.location.href = '$deepLinkUrl';
                             }, 1000);
-                            
+
                             // 3초 후에도 앱이 열리지 않으면 사용자에게 안내
                             setTimeout(function() {
                                 document.body.innerHTML += '<p style="color: red;">앱이 자동으로 열리지 않으면 위의 "앱에서 열기" 링크를 클릭해주세요.</p>';

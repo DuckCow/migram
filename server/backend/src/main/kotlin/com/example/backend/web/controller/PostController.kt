@@ -4,6 +4,7 @@ import com.example.backend.web.model.*
 import com.example.backend.web.service.LikeService
 import com.example.backend.web.service.PostService
 import com.example.backend.web.service.UserService
+import com.example.backend.web.util.SecurityUtils
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.crossstore.ChangeSetPersister
 import org.springframework.data.domain.Page
@@ -22,7 +23,8 @@ import java.security.Principal
 @RequestMapping("/posts")
 class PostController(
     private val postService: PostService,
-    private val likeService: LikeService
+    private val likeService: LikeService,
+    private val securityUtils: SecurityUtils
 ) {
 
     @GetMapping
@@ -32,18 +34,11 @@ class PostController(
     fun getPostById(@PathVariable postId: Long): PostResponseDTO = postService.findById(postId)
 
 
-    /*
     @PostMapping
-    fun createPost(@RequestBody postRequestDTO: PostRequestDTO): PostResponseDTO {
-        val userId = 1L // Replace with actual user ID retrieval logic
-        return postService.save(postRequestDTO, userId)
-    }
-
-     */
-
-    @PostMapping
-    fun createPost(@RequestPart("post") postRequestDTO: PostRequestDTO,
-                   @RequestPart("file", required = false) file: MultipartFile?): ResponseEntity<PostResponseDTO> {
+    fun createPost(
+        @RequestPart("post") postRequestDTO: PostRequestDTO,
+        @RequestPart("file", required = false) file: MultipartFile?
+    ): ResponseEntity<PostResponseDTO> {
         val createdPost = postService.createPost(postRequestDTO, file)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
@@ -53,7 +48,7 @@ class PostController(
         @PathVariable postId: Long,
         @RequestBody postRequestDTO: PostRequestDTO
     ): PostResponseDTO {
-        val userId = 1L // Replace with actual user ID retrieval logic
+        val userId = securityUtils.getCurrentUserId()
         return postService.update(postId, postRequestDTO, userId)
     }
 

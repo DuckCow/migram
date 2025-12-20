@@ -23,26 +23,15 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     print("LoginScreen initState called"); // 디버깅 로그
-    WidgetsBinding.instance.addObserver(this);
     _checkLoginStatus();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   // 앱이 포그라운드로 돌아올 때 호출
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    print('App lifecycle changed to: $state');
-    if (state == AppLifecycleState.resumed) {
-      print('App resumed, checking login status...');
-      // 앱이 다시 활성화될 때 로그인 상태 확인
-      _checkLoginStatus();
-    }
-  }
 
   Future<void> _checkLoginStatus() async {
     print("Checking login status..."); // 디버깅 로그
