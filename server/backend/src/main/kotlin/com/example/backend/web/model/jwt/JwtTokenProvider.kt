@@ -3,17 +3,29 @@ package com.example.backend.web.model.jwt
 import com.example.backend.web.model.CustomOAuth2User
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
+import io.jsonwebtoken.security.Keys
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User
 import org.springframework.stereotype.Component
 import java.util.*
+import javax.crypto.SecretKey
 
 @Component
 class JwtTokenProvider {
 
-    private val secretKey = Jwts.SIG.HS256.key().build() // 최신 방식
-    private val accessTokenValidityInMs = 3600000L
-    private val refreshTokenValidityInMs = 86400000L
+    @Value("\${jwt.secret}")
+    private lateinit var jwtSecret: String
+
+    @Value("\${jwt.access-token-validity-in-ms:3600000}")
+    private val accessTokenValidityInMs: Long = 3600000L
+
+    @Value("\${jwt.refresh-token-validity-in-ms:86400000}")
+    private val refreshTokenValidityInMs: Long = 86400000L
+
+    private val secretKey: SecretKey by lazy {
+        Keys.hmacShaKeyFor(jwtSecret.toByteArray())
+    }
 
     fun generateAccessToken(authentication: Authentication): String {
         val oauth2User = authentication.principal as CustomOAuth2User

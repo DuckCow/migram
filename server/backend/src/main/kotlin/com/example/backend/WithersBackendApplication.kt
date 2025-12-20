@@ -6,10 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.ApplicationContext
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
+import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.stereotype.Component
 
 @SpringBootApplication
 @EnableJpaAuditing
+@EnableScheduling
 class WithersBackendApplication
 
 fun main(args: Array<String>) {

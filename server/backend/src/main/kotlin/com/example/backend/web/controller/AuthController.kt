@@ -1,13 +1,17 @@
 package com.example.backend.web.controller
 
 import com.example.backend.web.model.CustomOAuth2User
+import com.example.backend.web.model.jwt.JwtTokenProvider
+import com.example.backend.web.service.AuthorizationCodeService
 import com.example.backend.web.service.UserService
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -19,32 +23,68 @@ import org.springframework.web.bind.annotation.RestController
 
 
 @RestController
-@RequestMapping("/auth") // 이 줄 추가!
+@RequestMapping("/auth")
 class AuthController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val authorizationCodeService: AuthorizationCodeService,
+    private val jwtTokenProvider: JwtTokenProvider
 ) {
 
     private val logger = LoggerFactory.getLogger(AuthController::class.java)
 
-
-
+    /**
+     * Authorization code를 JWT 토큰으로 교환
+     * OAuth2 인증 후 프론트엔드가 이 엔드포인트를 호출합니다.
+     */
     @PostMapping("/token")
     fun exchangeToken(@RequestBody request: TokenRequest): ResponseEntity<TokenResponse> {
-        logger.info("Token exchange request received: $request")
-        try {
-            val accessToken = "임시 액세스 토큰"
-            val refreshToken = "임시 리프레시 토큰"
+        logger.info("Token exchange request received for code: ${request.code.take(10)}...")
 
-            logger.info("Returning tokens")
-            return ResponseEntity.ok(TokenResponse(accessToken, refreshToken))
+        try {
+            // Authorization code 검증 및 사용 처리
+            val email = authorizationCodeService.validateAndUseCode(request.code)
+            if (email == null) {
+                logger.warn("Invalid or expired authorization code")
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(TokenResponse(null, null, "Invalid or expired authorization code"))
+            }
+
+            // 사용자 조회
+            val user = userService.findEntityByEmail(email)
+            if (user == null) {
+                logger.error("User not found for email: $email")
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(TokenResponse(null, null, "User not found"))
+            }
+
+            // Authentication 객체 생성 (JWT 토큰 생성용)
+            val authorities = user.roles.map { SimpleGrantedAuthority("ROLE_${it.name}") }
+            val authentication: Authentication = UsernamePasswordAuthenticationToken(
+                CustomOAuth2User(user),
+                null,
+                authorities
+            )
+
+            // JWT 토큰 생성
+            val accessToken = jwtTokenProvider.generateAccessToken(authentication)
+            val refreshToken = jwtTokenProvider.generateRefreshToken(authentication)
+
+            logger.info("Tokens generated successfully for user: $email")
+            return ResponseEntity.ok(TokenResponse(accessToken, refreshToken, null))
+
         } catch (e: Exception) {
             logger.error("Error during token exchange", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(TokenResponse(null, null, "Internal server error"))
         }
     }
 
     data class TokenRequest(val code: String)
-    data class TokenResponse(val accessToken: String, val refreshToken: String)
+    data class TokenResponse(
+        val accessToken: String?,
+        val refreshToken: String?,
+        val error: String?
+    )
 
     @GetMapping("/profile")
     fun checkUserProfile(authentication: Authentication?): ResponseEntity<ProfileStatusResponse> {

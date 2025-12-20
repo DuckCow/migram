@@ -7,24 +7,27 @@ server:
     port: 80
 #    redirect-to-http: true
 
+jwt:
+  secret: ${JWT_SECRET_KEY}
+  access-token-validity-in-ms: 3600000  # 1 hour
+  refresh-token-validity-in-ms: 86400000  # 24 hours
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILE:dev}  # Default to dev if not specified
+
   autoconfigure:
     exclude:
       - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
-
 
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     database: mysql
     show-sql: true
     generate-ddl: true
-    hibernate:
-      ddl-auto: create
 
   main:
     allow-bean-definition-overriding: true
-
 
   h2:
     console:
@@ -44,17 +47,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: http://localhost:8080/login/oauth2/code/google
-
-
-
-
-
-  datasource:
-    driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
-    username: sa
-    password: 
+            redirect-uri: http://localhost:8080/login/oauth2/code/google 
 
 
 

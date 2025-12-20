@@ -1,4 +1,5 @@
 // screens/country_selection_screen.dart
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../services/dio_service.dart';
 import 'main_screen.dart';
@@ -51,7 +52,11 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
   }
 
   Future<void> _saveCountries() async {
+    print("=== _saveCountries started ==="); // 추가
+
     if (selectedOriginCountry == null || selectedCurrentCountry == null) {
+      print(
+          "Countries not selected: origin=$selectedOriginCountry, current=$selectedCurrentCountry"); // 추가
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('출신 국가와 현재 국가를 모두 선택해주세요')),
       );
@@ -59,22 +64,33 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
     }
 
     try {
-      // enum 코드로 전송
+      print(
+          "Selected countries: origin=$selectedOriginCountry, current=$selectedCurrentCountry"); // 추가
+
       final requestData = {
-        'originCountry': selectedOriginCountry, // 이제 enum 코드
-        'currentCountry': selectedCurrentCountry, // 이제 enum 코드
+        'originCountry': selectedOriginCountry,
+        'currentCountry': selectedCurrentCountry,
       };
       print('Sending country data: $requestData');
 
+      print("Making PUT request to /api/user/countries..."); // 추가
       await DioService().put('/api/user/countries', data: requestData);
+      print("PUT request completed successfully"); // 추가
 
       if (context.mounted) {
+        print("Navigating to MainScreen..."); // 추가
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainScreen()),
         );
+      } else {
+        print("Context not mounted, cannot navigate"); // 추가
       }
     } catch (e) {
       print('Error saving countries: $e');
+      if (e is DioException) {
+        print('Dio error response: ${e.response?.data}');
+        print('Dio error statusCode: ${e.response?.statusCode}');
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('국가 정보 저장 중 오류가 발생했습니다')),
@@ -128,6 +144,7 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
                     hint: const Text('현재 국가를 선택하세요'),
                     value: selectedCurrentCountry,
                     onChanged: (value) {
+                      print('Origin country selected: $value'); // 로그 추가
                       setState(() {
                         selectedCurrentCountry = value;
                       });

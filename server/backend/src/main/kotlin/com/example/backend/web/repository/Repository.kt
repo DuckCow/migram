@@ -53,12 +53,14 @@ interface LikeRepository : JpaRepository<Like, Long> {
     fun findUsersByPostId(postId: Long, pageable: Pageable): Page<User>
     fun countByPost(post: Post): Long
     fun countByComment(comment: com.example.backend.web.model.Comment): Long
-
-
 }
+
+interface AuthorizationCodeRepository : JpaRepository<AuthorizationCode, Long> {
+    fun findByCode(code: String): AuthorizationCode?
+    fun deleteByExpiresAtBefore(expiresAt: java.time.LocalDateTime)
+}
+
 /*
-
-
 interface MessageRepository : JpaRepository<Message, Long> {
     fun findByChatRoom(chatRoom: ChatRoom): List<Message>
 }*/
