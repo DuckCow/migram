@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.web.bind.annotation.GetMapping
 
 @Configuration
@@ -106,9 +107,22 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    .requestMatchers("/login", "/oauth2/**", "/login/**").permitAll()
-                    .requestMatchers("/auth/**", "/posts").authenticated()
+                    .requestMatchers(
+                        AntPathRequestMatcher("/login"),
+                        AntPathRequestMatcher("/oauth2/**"),
+                        AntPathRequestMatcher("/login/**"),
+                        AntPathRequestMatcher("/h2-console/**")
+                    ).permitAll()
+                    .requestMatchers(
+                        AntPathRequestMatcher("/auth/**"),
+                        AntPathRequestMatcher("/posts")
+                    ).authenticated()
                     .anyRequest().permitAll()
+            }
+            .headers { headers ->
+                headers.frameOptions { frameOptions ->
+                    frameOptions.sameOrigin() // H2 콘솔을 위한 설정
+                }
             }
             .oauth2Login { oauth2 ->
                 oauth2
