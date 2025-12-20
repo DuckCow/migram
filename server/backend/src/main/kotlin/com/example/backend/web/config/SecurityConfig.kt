@@ -63,12 +63,14 @@ class SecurityConfig {
                 val deepLinkUrl = "migram://oauth/callback?code=$authorizationCode"
                 println("Deep link URL: $deepLinkUrl")
 
-                // HTML 페이지로 응답
-                response.contentType = "text/html"
+                // HTML 페이지로 응답 (UTF-8 인코딩 명시)
+                response.contentType = "text/html; charset=UTF-8"
+                response.characterEncoding = "UTF-8"
                 response.writer.write("""
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta charset="UTF-8">
                     <title>로그인 완료</title>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 </head>
