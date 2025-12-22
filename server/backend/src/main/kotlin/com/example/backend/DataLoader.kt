@@ -26,7 +26,7 @@ class DataLoader {
             name = "Test User 1",
             email = "test1@example.com",
             profilePicture = null,
-            nickname = "빠른고양이",
+            nickname = "FastCat",
             originCountry = Country.JAPAN,
             currentCountry = Country.JAPAN,
             roles = mutableSetOf(Role.USER)
@@ -36,7 +36,7 @@ class DataLoader {
             name = "Test User 2",
             email = "test2@example.com",
             profilePicture = null,
-            nickname = "느린토끼",
+            nickname = "SlowRabbit",
             originCountry = Country.CANADA,
             currentCountry = Country.CANADA,
             roles = mutableSetOf(Role.USER)
@@ -46,7 +46,7 @@ class DataLoader {
             name = "Test User 3",
             email = "test3@example.com",
             profilePicture = null,
-            nickname = "행복한판다",
+            nickname = "HappyPanda",
             originCountry = Country.KOREA_SOUTH,
             currentCountry = Country.KOREA_SOUTH,
             roles = mutableSetOf(Role.USER)

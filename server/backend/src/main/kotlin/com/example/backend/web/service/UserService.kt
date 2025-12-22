@@ -94,12 +94,12 @@ class UserService(
 
     /**
      * Update user's nickname (manual change)
-     * Validates Korean characters only, 2-10 characters
+     * Validates English letters only, 3-30 characters
      */
     fun updateNickname(userId: Long, newNickname: String): User {
-        // Validate nickname format (Korean only, 2-10 chars)
-        if (!newNickname.matches(Regex("^[가-힣]{2,10}$"))) {
-            throw IllegalArgumentException("Nickname must be 2-10 Korean characters")
+        // Validate nickname format (English letters only, 3-30 chars)
+        if (!newNickname.matches(Regex("^[A-Za-z]{3,30}$"))) {
+            throw IllegalArgumentException("Nickname must be 3-30 English letters")
         }
 
         // Check uniqueness
@@ -124,9 +124,9 @@ class UserService(
 
         // Update nickname if provided and different
         if (nickname != null && nickname != user.nickname) {
-            // Validate nickname format (Korean only, 2-10 chars)
-            if (!nickname.matches(Regex("^[가-힣]{2,10}$"))) {
-                throw IllegalArgumentException("Nickname must be 2-10 Korean characters")
+            // Validate nickname format (English letters only, 3-30 chars)
+            if (!nickname.matches(Regex("^[A-Za-z]{3,30}$"))) {
+                throw IllegalArgumentException("Nickname must be 3-30 English letters")
             }
 
             // Check uniqueness
