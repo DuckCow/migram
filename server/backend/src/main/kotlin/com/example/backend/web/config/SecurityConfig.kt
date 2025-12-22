@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.web.bind.annotation.GetMapping
 
 @Configuration
@@ -62,12 +63,14 @@ class SecurityConfig {
                 val deepLinkUrl = "migram://oauth/callback?code=$authorizationCode"
                 println("Deep link URL: $deepLinkUrl")
 
-                // HTML 페이지로 응답
-                response.contentType = "text/html"
+                // HTML 페이지로 응답 (UTF-8 인코딩 명시)
+                response.contentType = "text/html; charset=UTF-8"
+                response.characterEncoding = "UTF-8"
                 response.writer.write("""
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta charset="UTF-8">
                     <title>로그인 완료</title>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 </head>
@@ -106,9 +109,34 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    .requestMatchers("/login", "/oauth2/**", "/login/**").permitAll()
-                    .requestMatchers("/auth/**", "/posts").authenticated()
+                    .requestMatchers(
+                        AntPathRequestMatcher("/login"),
+                        AntPathRequestMatcher("/oauth2/**"),
+                        AntPathRequestMatcher("/login/**"),
+                        AntPathRequestMatcher("/h2-console/**"),
+                        AntPathRequestMatcher("/auth/token"), // 토큰 교환은 인증 불필요
+                        AntPathRequestMatcher("/api/countries"), // 국가 목록은 인증 불필요
+                        AntPathRequestMatcher("/posts/feed", "GET"), // Feed는 읽기 전용이므로 인증 불필요
+                        AntPathRequestMatcher("/posts/*", "GET"), // 게시글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/posts/*/comments", "GET"), // 댓글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/comments/*", "GET") // 댓글 읽기는 인증 불필요
+                    ).permitAll()
+                    .requestMatchers(
+                        AntPathRequestMatcher("/auth/profile"), // 프로필 확인은 인증 필요
+                        AntPathRequestMatcher("/api/user/**"), // 사용자 정보 수정은 인증 필요
+                        AntPathRequestMatcher("/posts/**", "POST"), // 게시글 생성 및 투표는 인증 필요
+                        AntPathRequestMatcher("/posts/**", "PUT"), // 게시글 수정은 인증 필요
+                        AntPathRequestMatcher("/posts/**", "DELETE"), // 게시글 삭제는 인증 필요
+                        AntPathRequestMatcher("/comments/**", "POST"), // 댓글 생성 및 투표는 인증 필요
+                        AntPathRequestMatcher("/comments/**", "PUT"), // 댓글 수정은 인증 필요
+                        AntPathRequestMatcher("/comments/**", "DELETE") // 댓글 삭제는 인증 필요
+                    ).authenticated()
                     .anyRequest().permitAll()
+            }
+            .headers { headers ->
+                headers.frameOptions { frameOptions ->
+                    frameOptions.sameOrigin() // H2 콘솔을 위한 설정
+                }
             }
             .oauth2Login { oauth2 ->
                 oauth2

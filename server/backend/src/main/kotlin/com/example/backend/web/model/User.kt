@@ -14,6 +14,8 @@ data class User (
     val email: String,
     val profilePicture: String?,
 
+    var nickname: String? = null,
+
     @Enumerated(EnumType.STRING)
     var originCountry: Country?,
 
@@ -31,11 +33,13 @@ data class User (
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     val comments: List<com.example.backend.web.model.Comment> = mutableListOf(),
 
-    @OneToMany(mappedBy = "follower", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    val followers: List<Follow> = mutableListOf(),
+    // Follow requests where this user is the target (received requests)
+    @OneToMany(mappedBy = "target", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    val followRequests: List<Follow> = mutableListOf(),
 
-    @OneToMany(mappedBy = "following", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    val followings: List<Follow> = mutableListOf()
+    // Follow requests where this user is the requester (sent requests)
+    @OneToMany(mappedBy = "requester", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    val sentFollowRequests: List<Follow> = mutableListOf()
 
 
 ) : UserDetails {
@@ -64,6 +68,7 @@ data class UserDTO(
     val name: String,
     val email: String,
     val profilePicture: String?,
+    val nickname: String?,
     val originCountry: Country?,
     val currentCountry: Country?
 ) {
@@ -73,8 +78,21 @@ data class UserDTO(
             name = this.name,
             email = this.email,
             profilePicture = this.profilePicture,
+            nickname = this.nickname,
             originCountry = this.originCountry,
             currentCountry = this.currentCountry
         )
     }
 }
+
+data class ProfileUpdateDTO(
+    val nickname: String?,
+    val originCountry: Country?,
+    val currentCountry: Country?
+)
+
+data class UserProfileDTO(
+    val user: UserDTO,
+    val postCount: Long,
+    val commentCount: Long
+)

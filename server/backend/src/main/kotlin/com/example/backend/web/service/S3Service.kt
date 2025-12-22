@@ -14,6 +14,7 @@ import org.springframework.security.access.AccessDeniedException
 @Service
 class S3Service(
     private val s3Client: S3Client,
+    private val imageOptimizationService: ImageOptimizationService,
     @Value("\${cloud.aws.s3.bucket}")  val bucket: String
 ) {
     fun uploadFile(file: MultipartFile, fileName: String): String {
@@ -22,23 +23,40 @@ class S3Service(
             val authentication = SecurityContextHolder.getContext().authentication
                 ?: throw AccessDeniedException("UnAuthorized")
 
+            // Check if file is an image and optimize
+            val (fileData, contentType, fileSize) = if (isImage(file.contentType)) {
+                val optimized = imageOptimizationService.optimizeImage(file)
+                println("Image optimized: ${file.originalFilename}")
+                println("Original size: ${optimized.originalSize} bytes")
+                println("Optimized size: ${optimized.optimizedSize} bytes")
+                println("Compression ratio: ${"%.2f".format(optimized.compressionRatio)}%")
+
+                Triple(optimized.data, optimized.contentType, optimized.optimizedSize)
+            } else {
+                Triple(file.bytes, file.contentType ?: "application/octet-stream", file.size)
+            }
+
             // 메타데이터 설정
             val metadata = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key("posts/$fileName")
-                .contentType(file.contentType)
-                .contentLength(file.size)
+                .contentType(contentType)
+                .contentLength(fileSize)
                 //.acl(ObjectCannedACL.PUBLIC_READ)
                 .build()
 
             // 파일 업로드
-            s3Client.putObject(metadata, RequestBody.fromInputStream(file.inputStream, file.size))
+            s3Client.putObject(metadata, RequestBody.fromBytes(fileData))
 
             // S3 URL 반환
             return "https://$bucket.s3.amazonaws.com/posts/$fileName"
         } catch (e: Exception) {
             throw RuntimeException("Failed to upload file to S3", e)
         }
+    }
+
+    private fun isImage(contentType: String?): Boolean {
+        return contentType?.startsWith("image/") == true
     }
 
     fun deleteFile(fileName: String) {

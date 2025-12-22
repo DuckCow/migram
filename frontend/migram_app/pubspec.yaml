@@ -40,6 +40,9 @@ dependencies:
   url_launcher: ^6.2.5  # 또는 최신 버전
   app_links: ^6.4.0
   shared_preferences: ^2.3.3
+  timeago: ^3.5.0
+  image_picker: ^1.0.7
+  http_parser: ^4.0.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

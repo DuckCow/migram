@@ -1,5 +1,8 @@
 package com.example.backend.web.model
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
+
 enum class Region {
     AFRICA,
     ASIA,
@@ -10,6 +13,7 @@ enum class Region {
 }
 
 enum class Country(
+    @get:JsonValue
     val code: String,
     val displayName: String,
     val dialCode: String,
@@ -211,4 +215,13 @@ enum class Country(
     YEMEN("YE", "Yemen", "+967", Region.ASIA),
     ZAMBIA("ZM", "Zambia", "+260", Region.AFRICA),
     ZIMBABWE("ZW", "Zimbabwe", "+263", Region.AFRICA);
+
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun fromCode(code: String): Country {
+            return values().find { it.code == code }
+                ?: throw IllegalArgumentException("Unknown country code: $code")
+        }
+    }
 }
