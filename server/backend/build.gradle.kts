@@ -22,6 +22,8 @@ repositories {
 
 dependencies {
 
+	// .env 파일 지원
+	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
 	// Redis 캐싱 (선택사항)
 	//implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -57,7 +59,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	//developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.h2database:h2")
-	runtimeOnly("com.mysql:mysql-connector-j")
+	runtimeOnly("org.postgresql:postgresql")
 
 
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")

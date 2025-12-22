@@ -27,29 +27,43 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain
     ) {
         try {
+            logger.debug("=== JWT Filter processing: ${request.method} ${request.requestURI} ===")
             val token = getTokenFromRequest(request)
 
-            if (token != null && jwtTokenProvider.validateToken(token)) {
-                val email = jwtTokenProvider.getEmailFromToken(token)
-                val user = userService.findEntityByEmail(email)
+            if (token != null) {
+                logger.debug("Token found, validating...")
+                if (jwtTokenProvider.validateToken(token)) {
+                    logger.debug("Token is valid, extracting email...")
+                    val email = jwtTokenProvider.getEmailFromToken(token)
+                    logger.debug("Email extracted: $email")
 
-                if (user != null) {
-                    // enum Role을 SimpleGrantedAuthority로 변환
-                    val authorities = user.roles.map { role ->
-                        SimpleGrantedAuthority("ROLE_${role.name}")
+                    val user = userService.findEntityByEmail(email)
+                    logger.debug("User found: ${user != null}")
+
+                    if (user != null) {
+                        // enum Role을 SimpleGrantedAuthority로 변환
+                        val authorities = user.roles.map { role ->
+                            SimpleGrantedAuthority("ROLE_${role.name}")
+                        }
+
+                        val authentication = UsernamePasswordAuthenticationToken(
+                            user.email,
+                            null,
+                            authorities
+                        )
+                        SecurityContextHolder.getContext().authentication = authentication
+                        logger.debug("Authentication set successfully for user: ${user.email}")
+                    } else {
+                        logger.warn("User not found for email: $email")
                     }
-
-                    val authentication = UsernamePasswordAuthenticationToken(
-                        user.email,
-                        null,
-                        authorities
-                    )
-                    SecurityContextHolder.getContext().authentication = authentication
+                } else {
+                    logger.warn("Token validation failed")
                 }
+            } else {
+                logger.debug("No token found in request")
             }
         } catch (e: Exception) {
-            // 또는 방법 2: 예외 객체만 전달
-             logger.error("Cannot set user authentication", e)
+            logger.error("Cannot set user authentication: ${e.message}", e)
         }
 
         filterChain.doFilter(request, response)

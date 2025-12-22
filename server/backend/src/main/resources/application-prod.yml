@@ -10,8 +10,8 @@ spring:
         format_sql: false
 
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DATABASE_URL}
+    driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL}  # jdbc:postgresql://host:5432/dbname
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
     hikari:

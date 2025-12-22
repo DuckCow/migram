@@ -21,8 +21,8 @@ spring:
       - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
 
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
-    database: mysql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database: postgresql
     show-sql: true
     generate-ddl: true
 

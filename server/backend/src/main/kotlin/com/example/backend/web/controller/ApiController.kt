@@ -3,6 +3,7 @@ package com.example.backend.web.controller
 import com.example.backend.web.model.Country
 import com.example.backend.web.model.CustomOAuth2User
 import com.example.backend.web.service.UserService
+import com.example.backend.web.util.SecurityUtils
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -16,7 +17,8 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api")
 class ApiController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val securityUtils: SecurityUtils
 ){
 
     @GetMapping("/countries")
@@ -33,29 +35,24 @@ class ApiController(
 
     @PutMapping("/user/countries")
     fun updateUserCountries(
-        @AuthenticationPrincipal user: CustomOAuth2User?,
         @RequestBody request: CountryUpdateRequest?
     ): ResponseEntity<Any> {
         println("=== updateUserCountries called ===")
-        println("User: $user")
         println("Request: $request")
-        println("Origin Country: ${request?.originCountry}")
         println("Current Country: ${request?.currentCountry}")
 
-        if (user == null) {
-            println("User is null")
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        }
-
-        if (request == null) {
-            println("Request is null")
+        if (request == null || request.currentCountry == null) {
+            println("Request is null or currentCountry is null")
             return ResponseEntity.badRequest().build()
         }
 
         try {
+            val userId = securityUtils.getCurrentUserId()
+            println("User ID from SecurityUtils: $userId")
+
             userService.updateUserCountries(
-                userId = user.getUser().id,
-                originCountry = request.originCountry,
+                userId = userId,
+                originCountry = null,
                 currentCountry = request.currentCountry
             )
             return ResponseEntity.ok().build()
@@ -67,8 +64,7 @@ class ApiController(
     }
 
     data class CountryUpdateRequest(
-        val originCountry: Country,
-        val currentCountry: Country
+        val currentCountry: Country?
     )
 
 }

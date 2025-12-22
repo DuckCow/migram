@@ -1,12 +1,7 @@
-// screens/login_screen.dart
-
-// screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../services/dio_service.dart';
 import '../services/token_service.dart';
-import '../services/user_service.dart';
-import 'country_selection_screen.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,25 +43,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       }
       print("is login");
 
-      // 로그인된 경우, 사용자 프로필 정보 확인
-      final userService = UserService();
-      final profileStatus = await userService.checkUserProfile();
-
+      // Direct navigation to MainScreen (no profile check)
       if (context.mounted) {
-        if (profileStatus.isProfileComplete) {
-          // 국가 설정이 완료된 경우
-          print("Navigating to MainScreen");
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MainScreen()),
-          );
-        } else {
-          // 국가 설정이 필요한 경우
-          print("Navigating to CountrySelectionScreen");
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-                builder: (context) => const CountrySelectionScreen()),
-          );
-        }
+        print("Navigating to MainScreen");
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
       }
     } catch (e) {
       print('Error checking login status: $e');
