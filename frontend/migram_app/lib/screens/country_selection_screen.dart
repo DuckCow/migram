@@ -12,7 +12,6 @@ class CountrySelectionScreen extends StatefulWidget {
 }
 
 class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
-  String? selectedOriginCountry;
   String? selectedCurrentCountry;
   List<Map<String, String>> countries = []; // Map으로 변경
   bool isLoading = true;
@@ -58,30 +57,27 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
   }
 
   Future<void> _saveCountries() async {
-    print("=== _saveCountries started ==="); // 추가
+    print("=== _saveCountries started ===");
 
-    if (selectedOriginCountry == null || selectedCurrentCountry == null) {
-      print(
-          "Countries not selected: origin=$selectedOriginCountry, current=$selectedCurrentCountry"); // 추가
+    if (selectedCurrentCountry == null) {
+      print("Current country not selected: $selectedCurrentCountry");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('출신 국가와 현재 국가를 모두 선택해주세요')),
+        const SnackBar(content: Text('현재 국가를 선택해주세요')),
       );
       return;
     }
 
     try {
-      print(
-          "Selected countries: origin=$selectedOriginCountry, current=$selectedCurrentCountry"); // 추가
+      print("Selected country: current=$selectedCurrentCountry");
 
       final requestData = {
-        'originCountry': selectedOriginCountry,
         'currentCountry': selectedCurrentCountry,
       };
       print('Sending country data: $requestData');
 
-      print("Making PUT request to /api/user/countries..."); // 추가
+      print("Making PUT request to /api/user/countries...");
       await DioService().put('/api/user/countries', data: requestData);
-      print("PUT request completed successfully"); // 추가
+      print("PUT request completed successfully");
 
       if (context.mounted) {
         print("Navigating to MainScreen..."); // 추가
@@ -119,28 +115,6 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '출신 국가',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButton<String>(
-                    isExpanded: true,
-                    hint: const Text('출신 국가를 선택하세요'),
-                    value: selectedOriginCountry,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedOriginCountry = value;
-                      });
-                    },
-                    items: countries.map((country) {
-                      return DropdownMenuItem<String>(
-                        value: country['code'], // enum 코드를 value로 사용
-                        child: Text(country['displayName']!), // 표시명은 그대로
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
                     '현재 국가',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -150,7 +124,7 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
                     hint: const Text('현재 국가를 선택하세요'),
                     value: selectedCurrentCountry,
                     onChanged: (value) {
-                      print('Origin country selected: $value'); // 로그 추가
+                      print('Current country selected: $value');
                       setState(() {
                         selectedCurrentCountry = value;
                       });

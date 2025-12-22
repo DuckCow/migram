@@ -1,10 +1,75 @@
 // services/user_service.dart
 import 'package:dio/dio.dart';
 import 'package:migram_app/services/token_service.dart';
+import '../models/user_model.dart';
+import '../models/user_profile_model.dart';
 
 import 'dio_service.dart';
 
 class UserService {
+  static UserModel? _currentUser; // Cache current user
+  final DioService _dioService = DioService();
+
+  /// Get current user (cached)
+  Future<UserModel?> getCurrentUser() async {
+    if (_currentUser != null) return _currentUser;
+
+    try {
+      final response = await _dioService.get('/users/me');
+      if (response.statusCode == 200) {
+        _currentUser = UserModel.fromJson(response.data as Map<String, dynamic>);
+        return _currentUser;
+      }
+    } catch (e) {
+      print('Error getting current user: $e');
+    }
+    return null;
+  }
+
+  /// Get current user profile with stats
+  Future<UserProfile> getCurrentUserProfile() async {
+    try {
+      final response = await _dioService.get('/users/me/profile');
+      if (response.statusCode == 200) {
+        final profile = UserProfile.fromJson(response.data as Map<String, dynamic>);
+        // Update cache
+        _currentUser = profile.user;
+        return profile;
+      }
+      throw Exception('Failed to load profile: ${response.statusCode}');
+    } catch (e) {
+      print('Error getting user profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Update current user profile
+  Future<UserModel> updateProfile(ProfileUpdateRequest request) async {
+    try {
+      final response = await _dioService.put(
+        '/users/me',
+        data: request.toJson(),
+      );
+
+      if (response.statusCode == 200) {
+        final updatedUser = UserModel.fromJson(response.data as Map<String, dynamic>);
+        // Update cache
+        _currentUser = updatedUser;
+        return updatedUser;
+      }
+
+      throw Exception('Failed to update profile: ${response.statusCode}');
+    } catch (e) {
+      print('Error updating profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Clear cached user (call on logout)
+  void clearCurrentUser() {
+    _currentUser = null;
+  }
+
   Future<ProfileStatus> checkUserProfile() async {
     try {
       print('UserService: Getting access token...');

@@ -115,12 +115,21 @@ class SecurityConfig {
                         AntPathRequestMatcher("/login/**"),
                         AntPathRequestMatcher("/h2-console/**"),
                         AntPathRequestMatcher("/auth/token"), // 토큰 교환은 인증 불필요
-                        AntPathRequestMatcher("/api/countries") // 국가 목록은 인증 불필요
+                        AntPathRequestMatcher("/api/countries"), // 국가 목록은 인증 불필요
+                        AntPathRequestMatcher("/posts/feed", "GET"), // Feed는 읽기 전용이므로 인증 불필요
+                        AntPathRequestMatcher("/posts/*", "GET"), // 게시글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/posts/*/comments", "GET"), // 댓글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/comments/*", "GET") // 댓글 읽기는 인증 불필요
                     ).permitAll()
                     .requestMatchers(
                         AntPathRequestMatcher("/auth/profile"), // 프로필 확인은 인증 필요
                         AntPathRequestMatcher("/api/user/**"), // 사용자 정보 수정은 인증 필요
-                        AntPathRequestMatcher("/posts")
+                        AntPathRequestMatcher("/posts/**", "POST"), // 게시글 생성 및 투표는 인증 필요
+                        AntPathRequestMatcher("/posts/**", "PUT"), // 게시글 수정은 인증 필요
+                        AntPathRequestMatcher("/posts/**", "DELETE"), // 게시글 삭제는 인증 필요
+                        AntPathRequestMatcher("/comments/**", "POST"), // 댓글 생성 및 투표는 인증 필요
+                        AntPathRequestMatcher("/comments/**", "PUT"), // 댓글 수정은 인증 필요
+                        AntPathRequestMatcher("/comments/**", "DELETE") // 댓글 삭제는 인증 필요
                     ).authenticated()
                     .anyRequest().permitAll()
             }
