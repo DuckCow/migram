@@ -6,7 +6,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    uniqueConstraints = [
+        UniqueConstraint(columnNames = ["nickname"])
+    ]
+)
 data class User (
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
@@ -14,6 +19,7 @@ data class User (
     val email: String,
     val profilePicture: String?,
 
+    @Column(unique = true)
     var nickname: String? = null,
 
     @Enumerated(EnumType.STRING)
