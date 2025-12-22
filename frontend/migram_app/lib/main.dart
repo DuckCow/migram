@@ -1,22 +1,19 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:migram_app/screens/country_selection_screen.dart';
 import 'package:migram_app/screens/login_screen.dart';
 import 'package:migram_app/screens/main_screen.dart';
 import 'package:migram_app/services/dio_service.dart';
 import 'package:migram_app/services/token_service.dart';
-import 'package:migram_app/services/user_service.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
-import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:app_links/app_links.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'dart:async';
-// 다른 필요한 imports...
 
 Future<void> main() async {
   print('=== App starting ===');
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize timeago with Korean locale
+  timeago.setLocaleMessages('ko', timeago.KoMessages());
 
   print('About to initialize AppLinks...');
   // DeepLink 초기 설정
@@ -103,30 +100,15 @@ void handleDeepLink(Uri uri) async {
             final savedToken = await TokenService().getAccessToken();
             print('Token saved verification: ${savedToken != null}');
 
-            print('Checking user profile...');
-            // 프로필 상태 직접 확인
-            final userService = UserService();
-            final profileStatus = await userService.checkUserProfile();
-            print('Profile complete: ${profileStatus.isProfileComplete}');
-
             // 네비게이터가 준비될 때까지 대기
             await Future.delayed(const Duration(milliseconds: 100));
 
-            // 적절한 화면으로 직접 이동
-            if (profileStatus.isProfileComplete) {
-              print('Navigating to MainScreen');
-              navigatorKey.currentState?.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const MainScreen()),
-                (route) => false,
-              );
-            } else {
-              print('Navigating to CountrySelectionScreen');
-              navigatorKey.currentState?.pushAndRemoveUntil(
-                MaterialPageRoute(
-                    builder: (context) => const CountrySelectionScreen()),
-                (route) => false,
-              );
-            }
+            // Direct navigation to MainScreen (no profile check)
+            print('Navigating to MainScreen');
+            navigatorKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const MainScreen()),
+              (route) => false,
+            );
           } else {
             throw Exception('Tokens not found in response');
           }

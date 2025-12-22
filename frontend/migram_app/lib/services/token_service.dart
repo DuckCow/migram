@@ -29,4 +29,8 @@ class TokenService {
     await prefs.remove(ACCESS_TOKEN_KEY);
     await prefs.remove(REFRESH_TOKEN_KEY);
   }
+
+  Future<void> clearTokens() async {
+    await deleteTokens();
+  }
 }

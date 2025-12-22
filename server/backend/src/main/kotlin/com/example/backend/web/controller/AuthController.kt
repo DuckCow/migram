@@ -50,11 +50,17 @@ class AuthController(
             }
 
             // 사용자 조회
-            val user = userService.findEntityByEmail(email)
+            var user = userService.findEntityByEmail(email)
             if (user == null) {
                 logger.error("User not found for email: $email")
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(TokenResponse(null, null, "User not found"))
+            }
+
+            // Auto-assign nickname if not exists (first login)
+            if (user.nickname == null) {
+                logger.info("Auto-assigning nickname for new user: $email")
+                user = userService.assignNickname(user.id)
             }
 
             // Authentication 객체 생성 (JWT 토큰 생성용)
@@ -120,7 +126,8 @@ class AuthController(
 
             println("User found: ${user.email}")
 
-            val isProfileComplete = user.originCountry != null && user.currentCountry != null
+            // Always return true for new onboarding flow (no mandatory country selection)
+            val isProfileComplete = true
 
             ResponseEntity.ok(ProfileStatusResponse(isProfileComplete))
 

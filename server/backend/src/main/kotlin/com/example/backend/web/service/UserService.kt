@@ -1,6 +1,8 @@
 package com.example.backend.web.service
 
 import com.example.backend.web.model.*
+import com.example.backend.web.repository.CommentRepository
+import com.example.backend.web.repository.PostRepository
 import com.example.backend.web.repository.UserRepository
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.stereotype.Service
@@ -8,11 +10,32 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional
-class UserService(private val userRepository: UserRepository) {
+class UserService(
+    private val userRepository: UserRepository,
+    private val postRepository: PostRepository,
+    private val commentRepository: CommentRepository,
+    private val nicknameGeneratorService: NicknameGeneratorService
+) {
 
     fun findAll(): List<UserDTO> = userRepository.findAll().map { it.toDTO() }
 
     fun findById(userId: Long): UserDTO = userRepository.findById(userId).orElseThrow { EntityNotFoundException("User not found") }.toDTO()
+
+    /**
+     * Get user profile with stats (post count, comment count)
+     */
+    fun getUserProfile(userId: Long): UserProfileDTO {
+        val user = userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found") }
+        val postCount = postRepository.countByUserId(userId)
+        val commentCount = commentRepository.countByUserId(userId)
+
+        return UserProfileDTO(
+            user = user.toDTO(),
+            postCount = postCount,
+            commentCount = commentCount
+        )
+    }
 
     fun save(userDTO: UserDTO): UserDTO {
         val user = userDTO.toEntity()
@@ -47,9 +70,79 @@ class UserService(private val userRepository: UserRepository) {
     }
     fun updateUserCountries(userId: Long, originCountry: Country?, currentCountry: Country?) {
         val user = findEntityById(userId) ?: throw IllegalArgumentException("User not found with id: $userId")
-        user.originCountry=originCountry;
-        user.currentCountry=currentCountry;
+        user.originCountry = originCountry
+        user.currentCountry = currentCountry
+        userRepository.save(user)
+    }
 
+    /**
+     * Auto-assign a unique nickname to a user
+     * Called during first login
+     */
+    fun assignNickname(userId: Long): User {
+        val user = userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found") }
 
+        if (user.nickname == null) {
+            val nickname = nicknameGeneratorService.generateUniqueNickname(userRepository)
+            val updatedUser = user.copy(nickname = nickname)
+            return userRepository.save(updatedUser)
+        }
+
+        return user
+    }
+
+    /**
+     * Update user's nickname (manual change)
+     * Validates Korean characters only, 2-10 characters
+     */
+    fun updateNickname(userId: Long, newNickname: String): User {
+        // Validate nickname format (Korean only, 2-10 chars)
+        if (!newNickname.matches(Regex("^[가-힣]{2,10}$"))) {
+            throw IllegalArgumentException("Nickname must be 2-10 Korean characters")
+        }
+
+        // Check uniqueness
+        if (userRepository.existsByNickname(newNickname)) {
+            throw IllegalArgumentException("Nickname already exists")
+        }
+
+        val user = userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found") }
+        val updatedUser = user.copy(nickname = newNickname)
+        return userRepository.save(updatedUser)
+    }
+
+    /**
+     * Update user profile (nickname and countries)
+     */
+    fun updateProfile(userId: Long, nickname: String?, originCountry: Country?, currentCountry: Country?): UserDTO {
+        val user = userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found") }
+
+        var updatedUser = user
+
+        // Update nickname if provided and different
+        if (nickname != null && nickname != user.nickname) {
+            // Validate nickname format (Korean only, 2-10 chars)
+            if (!nickname.matches(Regex("^[가-힣]{2,10}$"))) {
+                throw IllegalArgumentException("Nickname must be 2-10 Korean characters")
+            }
+
+            // Check uniqueness
+            if (userRepository.existsByNickname(nickname)) {
+                throw IllegalArgumentException("Nickname already exists")
+            }
+
+            updatedUser = updatedUser.copy(nickname = nickname)
+        }
+
+        // Update countries
+        updatedUser = updatedUser.copy(
+            originCountry = originCountry,
+            currentCountry = currentCountry
+        )
+
+        return userRepository.save(updatedUser).toDTO()
     }
 }
