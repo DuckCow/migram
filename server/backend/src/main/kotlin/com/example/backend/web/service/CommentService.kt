@@ -19,7 +19,8 @@ class CommentService(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
     private val voteRepository: VoteRepository,
-    private val securityUtils: SecurityUtils
+    private val securityUtils: SecurityUtils,
+    private val notificationService: NotificationService
 ) {
 
     fun findByPost(postId: Long, pageable: Pageable): Page<com.example.backend.web.model.CommentResponseDTO> {
@@ -70,8 +71,34 @@ class CommentService(
             parentComment = parentComment
         )
 
-        return commentRepository.save(comment)
-            .toResponseDTO(voteRepository, userId, userRepository)
+        val saved = commentRepository.save(comment)
+
+        // Send notification based on comment type
+        if (parentComment != null) {
+            // Reply to comment: notify parent comment author
+            if (parentComment.user.id != userId) {  // Don't notify if replying to own comment
+                notificationService.createNotification(
+                    recipientId = parentComment.user.id,
+                    actorId = userId,
+                    type = NotificationType.REPLY_ON_COMMENT,
+                    referenceId = saved.id,
+                    message = "${user.nickname ?: user.name} replied to your comment: ${commentRequestDTO.content.take(50)}"
+                )
+            }
+        } else {
+            // Comment on post: notify post author
+            if (post.user.id != userId) {  // Don't notify if commenting on own post
+                notificationService.createNotification(
+                    recipientId = post.user.id,
+                    actorId = userId,
+                    type = NotificationType.COMMENT_ON_POST,
+                    referenceId = saved.id,
+                    message = "${user.nickname ?: user.name} commented on your post: ${commentRequestDTO.content.take(50)}"
+                )
+            }
+        }
+
+        return saved.toResponseDTO(voteRepository, userId, userRepository)
     }
 
     fun update(commentId: Long, updatedCommentRequestDTO: com.example.backend.web.model.CommentRequestDTO, userId: Long): com.example.backend.web.model.CommentResponseDTO {

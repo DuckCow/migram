@@ -2,6 +2,7 @@ package com.example.backend.web.service
 
 import com.example.backend.web.model.Follow
 import com.example.backend.web.model.FollowStatus
+import com.example.backend.web.model.NotificationType
 import com.example.backend.web.model.UserDTO
 import com.example.backend.web.model.toDTO
 import com.example.backend.web.repository.FollowRepository
@@ -52,7 +53,8 @@ fun Follow.toDTO(): FollowDTO = FollowDTO(
 class FollowService(
     private val followRepository: FollowRepository,
     private val userRepository: UserRepository,
-    private val securityUtils: SecurityUtils
+    private val securityUtils: SecurityUtils,
+    private val notificationService: NotificationService
 ) {
 
     /**
@@ -110,7 +112,16 @@ class FollowService(
             target = target,
             status = FollowStatus.REQUESTED
         )
-        followRepository.save(follow)
+        val saved = followRepository.save(follow)
+
+        // Send notification to target user
+        notificationService.createNotification(
+            recipientId = targetUserId,
+            actorId = currentUserId,
+            type = NotificationType.FOLLOW_REQUEST,
+            referenceId = saved.id,
+            message = "${requester.nickname ?: requester.name} sent you a follow request"
+        )
 
         return FollowRequestResult(true, "팔로우 요청을 보냈습니다", FollowStatus.REQUESTED)
     }
@@ -135,6 +146,15 @@ class FollowService(
         follow.status = FollowStatus.ACCEPTED
         follow.respondedAt = LocalDateTime.now()
         followRepository.save(follow)
+
+        // Send notification to requester
+        notificationService.createNotification(
+            recipientId = follow.requester.id,
+            actorId = currentUserId,
+            type = NotificationType.FOLLOW_ACCEPTED,
+            referenceId = follow.id,
+            message = "${follow.target.nickname ?: follow.target.name} accepted your follow request"
+        )
 
         return FollowRequestResult(true, "팔로우 요청을 수락했습니다", FollowStatus.ACCEPTED)
     }
