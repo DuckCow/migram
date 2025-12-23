@@ -25,6 +25,19 @@ spring:
     console:
       enabled: false  # Disable H2 console in production
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
 logging:
   level:
     com.example.backend: INFO

@@ -1,11 +1,14 @@
 package com.example.backend.web.service
 
+import com.example.backend.web.config.CacheConfig
 import com.example.backend.web.model.*
 import com.example.backend.web.repository.PostRepository
 import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.repository.VoteRepository
 import com.example.backend.web.util.SecurityUtils
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
@@ -29,7 +32,13 @@ class PostService(
     /**
      * Get feed with Hot algorithm sorting
      * Optionally filter by multiple countries
+     *
+     * Cached for 10 minutes to reduce computation
      */
+    @Cacheable(
+        value = [CacheConfig.FEED_CACHE],
+        key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
+    )
     fun getFeed(countries: List<Country>?, pageable: Pageable): Page<PostResponseDTO> {
         val currentUserId = try {
             securityUtils.getCurrentUserId()
@@ -120,6 +129,7 @@ class PostService(
             .toResponseDTO(voteRepository, userId, userRepository)
     }
 
+    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
     fun createPost(postRequestDTO: PostRequestDTO, file: MultipartFile?): PostResponseDTO {
         val currentUserId = securityUtils.getCurrentUserId()
         val user = userRepository.findById(currentUserId)
@@ -144,6 +154,7 @@ class PostService(
             .toResponseDTO(voteRepository, currentUserId, userRepository)
     }
 
+    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
     fun update(
         postId: Long,
         updatedPostRequestDTO: PostRequestDTO,
@@ -192,6 +203,7 @@ class PostService(
             .toResponseDTO(voteRepository, userId, userRepository)
     }
 
+    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
     fun delete(postId: Long, userId: Long) {
         val post = postRepository.findById(postId)
             .orElseThrow { EntityNotFoundException("Post not found") }

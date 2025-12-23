@@ -1,8 +1,10 @@
 package com.example.backend.web.service
 
+import com.example.backend.web.config.CacheConfig
 import com.example.backend.web.model.Post
 import com.example.backend.web.model.VoteType
 import com.example.backend.web.repository.VoteRepository
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
@@ -20,7 +22,13 @@ class HotAlgorithmService {
      *
      * The +2 offset prevents division by very small numbers for brand new posts
      * The ^1.5 exponent creates a reasonable decay curve
+     *
+     * Cached for 15 minutes to reduce computation
      */
+    @Cacheable(
+        value = [CacheConfig.HOT_SCORE_CACHE],
+        key = "#upvotes + '-' + #downvotes + '-' + #createdAt.toString()"
+    )
     fun calculateHotScore(
         upvotes: Long,
         downvotes: Long,
