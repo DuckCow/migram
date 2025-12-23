@@ -9,6 +9,10 @@ import java.time.LocalDateTime
     uniqueConstraints = [
         UniqueConstraint(columnNames = ["user_id", "post_id"]),
         UniqueConstraint(columnNames = ["user_id", "comment_id"])
+    ],
+    indexes = [
+        Index(name = "idx_votes_post_type", columnList = "post_id, vote_type"),
+        Index(name = "idx_votes_comment_type", columnList = "comment_id, vote_type")
     ]
 )
 data class Vote(
@@ -29,7 +33,7 @@ data class Vote(
     val comment: Comment? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "vote_type", nullable = false)
     var voteType: VoteType,
 
     @Column(nullable = false)
