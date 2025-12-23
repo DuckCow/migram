@@ -25,8 +25,8 @@ dependencies {
 	// .env 파일 지원
 	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
-	// Redis 캐싱 (선택사항)
-	//implementation("org.springframework.boot:spring-boot-starter-data-redis")
+	// Redis 캐싱
+	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
 
 	implementation("io.jsonwebtoken:jjwt-api:0.12.3")

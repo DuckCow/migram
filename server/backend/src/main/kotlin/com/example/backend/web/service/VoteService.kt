@@ -1,5 +1,6 @@
 package com.example.backend.web.service
 
+import com.example.backend.web.config.CacheConfig
 import com.example.backend.web.model.Vote
 import com.example.backend.web.model.VoteType
 import com.example.backend.web.repository.CommentRepository
@@ -8,6 +9,8 @@ import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.repository.VoteRepository
 import com.example.backend.web.util.SecurityUtils
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -26,6 +29,15 @@ class VoteService(
      * If clicking different vote type -> update to new type
      * If no existing vote -> create new vote
      */
+    @CacheEvict(
+        value = [
+            CacheConfig.VOTE_COUNT_CACHE,
+            CacheConfig.HOT_SCORE_CACHE,
+            CacheConfig.FEED_CACHE,
+            CacheConfig.USER_VOTES_CACHE
+        ],
+        allEntries = true
+    )
     fun votePost(postId: Long, voteType: VoteType): VoteResult {
         val currentUserId = securityUtils.getCurrentUserId()
         val user = userRepository.findById(currentUserId)
@@ -56,6 +68,10 @@ class VoteService(
     /**
      * Toggle vote on a comment
      */
+    @CacheEvict(
+        value = [CacheConfig.VOTE_COUNT_CACHE, CacheConfig.USER_VOTES_CACHE],
+        allEntries = true
+    )
     fun voteComment(commentId: Long, voteType: VoteType): VoteResult {
         val currentUserId = securityUtils.getCurrentUserId()
         val user = userRepository.findById(currentUserId)
@@ -83,6 +99,7 @@ class VoteService(
         }
     }
 
+    @Cacheable(value = [CacheConfig.VOTE_COUNT_CACHE], key = "'post-' + #postId")
     fun getPostVoteCounts(postId: Long): VoteCounts {
         val post = postRepository.findById(postId)
             .orElseThrow { EntityNotFoundException("Post not found") }
@@ -91,6 +108,7 @@ class VoteService(
         return VoteCounts(upvotes, downvotes, upvotes - downvotes)
     }
 
+    @Cacheable(value = [CacheConfig.VOTE_COUNT_CACHE], key = "'comment-' + #commentId")
     fun getCommentVoteCounts(commentId: Long): VoteCounts {
         val comment = commentRepository.findById(commentId)
             .orElseThrow { EntityNotFoundException("Comment not found") }
@@ -99,6 +117,7 @@ class VoteService(
         return VoteCounts(upvotes, downvotes, upvotes - downvotes)
     }
 
+    @Cacheable(value = [CacheConfig.USER_VOTES_CACHE], key = "'post-' + #postId + '-user-' + #userId")
     fun getUserVoteForPost(postId: Long, userId: Long): VoteType? {
         val user = userRepository.findById(userId)
             .orElseThrow { EntityNotFoundException("User not found") }
@@ -107,6 +126,7 @@ class VoteService(
         return voteRepository.findByUserAndPost(user, post)?.voteType
     }
 
+    @Cacheable(value = [CacheConfig.USER_VOTES_CACHE], key = "'comment-' + #commentId + '-user-' + #userId")
     fun getUserVoteForComment(commentId: Long, userId: Long): VoteType? {
         val user = userRepository.findById(userId)
             .orElseThrow { EntityNotFoundException("User not found") }

@@ -26,6 +26,11 @@ spring:
     show-sql: true
     generate-ddl: true
 
+  cache:
+    type: redis
+    redis:
+      time-to-live: 900000  # 15 minutes in ms
+
   main:
     allow-bean-definition-overriding: true
 
