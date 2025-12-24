@@ -3,7 +3,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create  # Development: Auto-create schema on startup
+      ddl-auto: update  # Development: Update schema without dropping data
     show-sql: true  # Show SQL queries in console
     properties:
       hibernate:
