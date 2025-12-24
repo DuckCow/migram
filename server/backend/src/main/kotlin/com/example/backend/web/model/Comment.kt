@@ -50,9 +50,9 @@ data class CommentResponseDTO(
     val downvotes: Long,
     val netVotes: Long,
     val currentUserVote: com.example.backend.web.model.VoteType?,
-    val createdAt: LocalDateTime,
+    val createdAt: String,
     val createdBy: String,
-    val modifiedAt: LocalDateTime,
+    val modifiedAt: String,
     val parentCommentId: Long? = null,  // 부모 댓글 ID
     val replies: List<CommentResponseDTO> = emptyList(),  // 대댓글 목록
     val replyCount: Int = 0  // 대댓글 개수

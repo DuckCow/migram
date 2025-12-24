@@ -29,9 +29,9 @@ fun Post.toResponseDTO(
         netVotes = upvotes - downvotes,
         currentUserVote = currentUserVote,
         commentCount = this.comments.size.toLong(),
-        createdAt = this.createdAt,
+        createdAt = this.createdAt.toString(),
         createdBy = this.createdBy ?: "",
-        modifiedAt = this.modifiedAt ?: LocalDateTime.now()
+        modifiedAt = (this.modifiedAt ?: LocalDateTime.now()).toString()
     )
 }
 
@@ -67,9 +67,9 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
         downvotes = downvotes,
         netVotes = upvotes - downvotes,
         currentUserVote = currentUserVote,
-        createdAt = this.createdAt,
+        createdAt = this.createdAt.toString(),
         createdBy = this.createdBy ?: "",
-        modifiedAt = this.modifiedAt ?: LocalDateTime.now(),
+        modifiedAt = (this.modifiedAt ?: LocalDateTime.now()).toString(),
         parentCommentId = this.parentComment?.id,
         replies = repliesDTO,
         replyCount = this.replies.size
