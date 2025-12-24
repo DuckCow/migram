@@ -68,14 +68,14 @@ data class PostResponseDTO(
  * Serializable page wrapper for Redis caching
  */
 data class PageDTO<T>(
-    val content: List<T>,
-    val pageNumber: Int,
-    val pageSize: Int,
-    val totalElements: Long,
-    val totalPages: Int,
-    val isFirst: Boolean,
-    val isLast: Boolean,
-    val hasNext: Boolean,
-    val hasPrevious: Boolean
+    val content: List<T> = emptyList(),
+    val pageNumber: Int = 0,
+    val pageSize: Int = 0,
+    val totalElements: Long = 0,
+    val totalPages: Int = 0,
+    val isFirst: Boolean = true,
+    val isLast: Boolean = true,
+    val hasNext: Boolean = false,
+    val hasPrevious: Boolean = false
 )
 
