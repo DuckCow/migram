@@ -1,5 +1,6 @@
 package com.example.backend.web.controller
 
+import com.example.backend.web.dto.UnreadCountResponse
 import com.example.backend.web.service.NotificationDTO
 import com.example.backend.web.service.NotificationService
 import com.example.backend.web.service.toDTO
@@ -73,7 +74,3 @@ class NotificationController(
         return ResponseEntity.ok().build()
     }
 }
-
-data class UnreadCountResponse(
-    val count: Long
-)
