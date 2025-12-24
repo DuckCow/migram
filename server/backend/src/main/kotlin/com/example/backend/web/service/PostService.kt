@@ -35,10 +35,11 @@ class PostService(
      *
      * Cached for 10 minutes to reduce computation
      */
-    @Cacheable(
-        value = [CacheConfig.FEED_CACHE],
-        key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
-    )
+    // TODO: Fix Page serialization issue with Redis before re-enabling cache
+    // @Cacheable(
+    //     value = [CacheConfig.FEED_CACHE],
+    //     key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
+    // )
     fun getFeed(countries: List<Country>?, pageable: Pageable): Page<PostResponseDTO> {
         val currentUserId = try {
             securityUtils.getCurrentUserId()
