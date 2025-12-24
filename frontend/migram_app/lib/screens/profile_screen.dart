@@ -10,6 +10,7 @@ import 'edit_profile_dialog.dart';
 import 'login_screen.dart';
 import 'follow_requests_screen.dart';
 import 'follow_list_screen.dart';
+import 'blocked_users_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -223,6 +224,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
             ],
+          ),
+          // Blocked users list
+          IconButton(
+            icon: const Icon(Icons.block),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const BlockedUsersScreen(),
+                ),
+              );
+            },
+            tooltip: '차단 목록',
           ),
           IconButton(
             icon: const Icon(Icons.logout),
