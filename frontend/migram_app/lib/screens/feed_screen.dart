@@ -5,6 +5,7 @@ import '../services/token_service.dart';
 import '../widgets/post_card.dart';
 import '../widgets/country_filter_bottom_sheet.dart';
 import '../widgets/search_bar.dart';
+import '../widgets/notification_icon.dart';
 import 'post_detail_screen.dart';
 import 'create_post_screen.dart';
 import 'login_screen.dart';
@@ -218,6 +219,8 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             ),
           ),
+          // Notification icon
+          const NotificationIcon(),
           // Profile button
           IconButton(
             icon: const Icon(Icons.account_circle),
