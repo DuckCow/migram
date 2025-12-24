@@ -87,3 +87,20 @@ fun User.toDTO(): UserDTO {
         currentCountry = this.currentCountry
     )
 }
+
+/**
+ * Convert Spring Page to cacheable PageDTO
+ */
+fun <T> org.springframework.data.domain.Page<T>.toPageDTO(): PageDTO<T> {
+    return PageDTO(
+        content = this.content,
+        pageNumber = this.number,
+        pageSize = this.size,
+        totalElements = this.totalElements,
+        totalPages = this.totalPages,
+        isFirst = this.isFirst,
+        isLast = this.isLast,
+        hasNext = this.hasNext(),
+        hasPrevious = this.hasPrevious()
+    )
+}
