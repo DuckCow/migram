@@ -43,6 +43,20 @@ class UserService {
     }
   }
 
+  /// Get user by ID
+  Future<UserModel> getUserById(int userId) async {
+    try {
+      final response = await _dioService.get('/users/$userId');
+      if (response.statusCode == 200) {
+        return UserModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw Exception('Failed to load user: ${response.statusCode}');
+    } catch (e) {
+      print('Error getting user by ID: $e');
+      rethrow;
+    }
+  }
+
   /// Update current user profile
   Future<UserModel> updateProfile(ProfileUpdateRequest request) async {
     try {

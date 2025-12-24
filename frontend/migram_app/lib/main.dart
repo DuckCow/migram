@@ -5,6 +5,7 @@ import 'package:migram_app/screens/main_screen.dart';
 import 'package:migram_app/services/dio_service.dart';
 import 'package:migram_app/services/token_service.dart';
 import 'package:migram_app/services/notification_service.dart';
+import 'package:migram_app/services/chat_service.dart';
 import 'package:app_links/app_links.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:async';
@@ -152,21 +153,24 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final NotificationService _notificationService = NotificationService();
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
     super.initState();
-    _initializeNotifications();
+    _initializeServices();
   }
 
-  Future<void> _initializeNotifications() async {
+  Future<void> _initializeServices() async {
     // Check if user is logged in
     final accessToken = await TokenService().getAccessToken();
     if (accessToken != null) {
-      // Connect to SSE stream for real-time notifications
+      // Connect to SSE streams for real-time notifications and chat
       await _notificationService.connectToNotificationStream();
-      // Fetch initial unread count
+      await _chatService.connectToChatStream();
+      // Fetch initial unread counts
       await _notificationService.getUnreadCount();
+      await _chatService.getTotalUnreadCount();
     }
   }
 
@@ -175,6 +179,7 @@ class _MyAppState extends State<MyApp> {
     // 앱 종료 시 구독 해제
     _linkSubscription?.cancel();
     _notificationService.dispose();
+    _chatService.disconnect();
     super.dispose();
   }
 

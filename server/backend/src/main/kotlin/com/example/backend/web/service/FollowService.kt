@@ -54,7 +54,8 @@ class FollowService(
     private val followRepository: FollowRepository,
     private val userRepository: UserRepository,
     private val securityUtils: SecurityUtils,
-    private val notificationService: NotificationService
+    private val notificationService: NotificationService,
+    private val blockService: BlockService
 ) {
 
     /**
@@ -76,6 +77,11 @@ class FollowService(
             .orElseThrow { EntityNotFoundException("Requester not found") }
         val target = userRepository.findById(targetUserId)
             .orElseThrow { EntityNotFoundException("Target user not found") }
+
+        // Check if blocked or blocking
+        if (blockService.hasBlockRelationship(currentUserId, targetUserId)) {
+            return FollowRequestResult(false, "Cannot follow this user")
+        }
 
         // Check existing follow relationship
         val existing = followRepository.findByRequesterAndTarget(requester, target)
