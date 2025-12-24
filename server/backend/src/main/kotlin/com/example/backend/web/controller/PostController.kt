@@ -35,7 +35,7 @@ class PostController(
         @RequestParam(required = false) countries: String?,
         @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable
-    ): Page<PostResponseDTO> {
+    ): PageDTO<PostResponseDTO> {
         val countryList = countries?.split(",")
             ?.mapNotNull { code ->
                 try {
