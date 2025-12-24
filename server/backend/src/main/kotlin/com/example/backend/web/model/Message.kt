@@ -34,7 +34,7 @@ data class Message(
     @Column(name = "read_at")
     var readAt: LocalDateTime? = null,
 
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
 )
 
