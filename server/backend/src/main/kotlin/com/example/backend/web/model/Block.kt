@@ -27,7 +27,7 @@ data class Block(
     @JoinColumn(name = "blocked_id", nullable = false)
     val blocked: User,
 
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
 ) {
     init {
