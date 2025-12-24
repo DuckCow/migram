@@ -58,9 +58,9 @@ data class PostResponseDTO(
     val netVotes: Long,
     val currentUserVote: VoteType?,
     val commentCount: Long,
-    val createdAt: LocalDateTime,
+    val createdAt: String,
     val createdBy: String,
-    val modifiedAt: LocalDateTime,
+    val modifiedAt: String,
     val hotScore: Double? = null
 )
 
