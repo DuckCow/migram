@@ -12,11 +12,11 @@ spring:
 
   sql:
     init:
-      mode: always  # Always run data.sql on startup
+      mode: never  # Don't run data.sql to avoid duplicates with file-based DB
 
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    url: jdbc:h2:file:./data/migram;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
     username: sa
     password:
 
