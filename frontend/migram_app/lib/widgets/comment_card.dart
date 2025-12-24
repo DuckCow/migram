@@ -30,6 +30,7 @@ class _CommentCardState extends State<CommentCard> {
   final UserService _userService = UserService();
   final CommentService _commentService = CommentService();
   int? _currentUserId;
+  bool _showReplies = true; // Toggle for showing/hiding replies
 
   @override
   void initState() {
@@ -126,6 +127,15 @@ class _CommentCardState extends State<CommentCard> {
           // Header: Avatar, nickname, timestamp
           Row(
             children: [
+              // Reply indicator for nested comments
+              if (widget.depth > 0) ...[
+                Icon(
+                  Icons.subdirectory_arrow_right,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+              ],
               // Avatar
               CircleAvatar(
                 radius: 14,
@@ -178,15 +188,22 @@ class _CommentCardState extends State<CommentCard> {
           const SizedBox(height: 4),
           Row(
             children: [
-              // Reply button
-              if (widget.onReply != null)
+              // Show/Hide replies toggle button (only if has replies)
+              if (widget.comment.replyCount > 0)
                 TextButton.icon(
-                  onPressed: () => widget.onReply!(widget.comment),
-                  icon: const Icon(Icons.reply, size: 16),
+                  onPressed: () {
+                    setState(() {
+                      _showReplies = !_showReplies;
+                    });
+                  },
+                  icon: Icon(
+                    _showReplies ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                  ),
                   label: Text(
-                    widget.comment.replyCount > 0
-                        ? '답글 ${widget.comment.replyCount}개'
-                        : '답글',
+                    _showReplies
+                        ? '답글 숨기기 (${widget.comment.replyCount})'
+                        : '답글 보기 (${widget.comment.replyCount})',
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: TextButton.styleFrom(
@@ -195,6 +212,23 @@ class _CommentCardState extends State<CommentCard> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
+              // Reply button
+              if (widget.onReply != null) ...[
+                if (widget.comment.replyCount > 0) const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => widget.onReply!(widget.comment),
+                  icon: const Icon(Icons.reply, size: 16),
+                  label: const Text(
+                    '답글 달기',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
               // Edit button (only for owner)
               if (_isCommentOwner()) ...[
                 const SizedBox(width: 8),
@@ -228,8 +262,8 @@ class _CommentCardState extends State<CommentCard> {
               ],
             ],
           ),
-          // Nested replies
-          if (widget.comment.replies.isNotEmpty) ...[
+          // Nested replies (only show if _showReplies is true)
+          if (_showReplies && widget.comment.replies.isNotEmpty) ...[
             const SizedBox(height: 8),
             ...widget.comment.replies.map((reply) => CommentCard(
                   comment: reply,
