@@ -26,7 +26,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _scrollController.addListener(_onScroll);
   }
 
-  void _loadNotifications() async {
+  Future<void> _loadNotifications() async {
     if (_isLoading) return;
 
     setState(() {
