@@ -1,5 +1,6 @@
 package com.example.backend.web.controller
 
+import com.example.backend.web.dto.UnreadCountResponse
 import com.example.backend.web.model.ChatRoomDTO
 import com.example.backend.web.model.MessageDTO
 import com.example.backend.web.service.ChatResult
@@ -114,8 +115,4 @@ class ChatController(
 
 data class SendMessageRequest(
     val content: String
-)
-
-data class UnreadCountResponse(
-    val count: Long
 )
