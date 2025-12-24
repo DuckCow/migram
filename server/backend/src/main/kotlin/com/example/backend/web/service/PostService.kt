@@ -33,12 +33,12 @@ class PostService(
      * Get feed with Hot algorithm sorting
      * Optionally filter by multiple countries
      *
-     * Cached for 10 minutes to reduce computation using PageDTO
+     * Caching disabled due to Redis serialization issues with complex DTOs
      */
-    @Cacheable(
-        value = [CacheConfig.FEED_CACHE],
-        key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
-    )
+    // @Cacheable(
+    //     value = [CacheConfig.FEED_CACHE],
+    //     key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
+    // )
     fun getFeed(countries: List<Country>?, pageable: Pageable): PageDTO<PostResponseDTO> {
         val currentUserId = try {
             securityUtils.getCurrentUserId()
