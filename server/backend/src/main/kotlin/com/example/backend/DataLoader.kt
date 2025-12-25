@@ -21,12 +21,19 @@ class DataLoader {
     ) = CommandLineRunner {
         println("=== Loading test data ===")
 
-        // Create test users
+        // Check if data already exists
+        if (userRepository.count() > 0) {
+            println("Test data already exists, skipping...")
+            return@CommandLineRunner
+        }
+
+        // Create test users with proper nickname format
         val user1 = User(
             name = "Test User 1",
             email = "test1@example.com",
             profilePicture = null,
-            nickname = "FastCat",
+            nickname = "Fast Cat",
+            nicknameKey = "fast_cat",
             originCountry = Country.JAPAN,
             currentCountry = Country.JAPAN,
             roles = mutableSetOf(Role.USER)
@@ -36,7 +43,8 @@ class DataLoader {
             name = "Test User 2",
             email = "test2@example.com",
             profilePicture = null,
-            nickname = "SlowRabbit",
+            nickname = "Slow Rabbit",
+            nicknameKey = "slow_rabbit",
             originCountry = Country.CANADA,
             currentCountry = Country.CANADA,
             roles = mutableSetOf(Role.USER)
@@ -46,7 +54,8 @@ class DataLoader {
             name = "Test User 3",
             email = "test3@example.com",
             profilePicture = null,
-            nickname = "HappyPanda",
+            nickname = "Happy Panda",
+            nicknameKey = "happy_panda",
             originCountry = Country.KOREA_SOUTH,
             currentCountry = Country.KOREA_SOUTH,
             roles = mutableSetOf(Role.USER)

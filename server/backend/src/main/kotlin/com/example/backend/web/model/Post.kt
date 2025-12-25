@@ -27,6 +27,9 @@ data class Post(
     @Enumerated(EnumType.STRING)
     val country: Country,
 
+    @Column(nullable = false)
+    val isAnonymous: Boolean = false,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     val user: User,
@@ -43,7 +46,8 @@ data class PostRequestDTO(
     val title: String,
     val content: String,
     val imageUrl: String?,
-    val country: Country  // Required: Country selection when creating post
+    val country: Country,  // Required: Country selection when creating post
+    val isAnonymous: Boolean = false
 )
 
 data class PostResponseDTO(
@@ -52,7 +56,8 @@ data class PostResponseDTO(
     val content: String,
     val imageUrl: String?,
     val country: Country,
-    val userDTO: UserDTO,
+    val isAnonymous: Boolean,
+    val userDTO: UserDTO?,  // Null when post is anonymous
     val upvotes: Long,
     val downvotes: Long,
     val netVotes: Long,

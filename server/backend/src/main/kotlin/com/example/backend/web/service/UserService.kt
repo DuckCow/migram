@@ -83,9 +83,12 @@ class UserService(
         val user = userRepository.findById(userId)
             .orElseThrow { EntityNotFoundException("User not found") }
 
-        if (user.nickname == null) {
-            val nickname = nicknameGeneratorService.generateUniqueNickname(userRepository)
-            val updatedUser = user.copy(nickname = nickname)
+        if (user.nickname == null || user.nicknameKey == null) {
+            val nicknameResult = nicknameGeneratorService.generateUniqueNickname(userRepository)
+            val updatedUser = user.copy(
+                nickname = nicknameResult.nickname,
+                nicknameKey = nicknameResult.nicknameKey
+            )
             return userRepository.save(updatedUser)
         }
 
@@ -94,22 +97,35 @@ class UserService(
 
     /**
      * Update user's nickname (manual change)
-     * Validates English letters only, 3-30 characters
+     * Validates English letters and space only, 3-24 characters
      */
     fun updateNickname(userId: Long, newNickname: String): User {
-        // Validate nickname format (English letters only, 3-30 chars)
-        if (!newNickname.matches(Regex("^[A-Za-z]{3,30}$"))) {
-            throw IllegalArgumentException("Nickname must be 3-30 English letters")
+        // Validate nickname format (English letters and space, 3-24 chars)
+        val trimmedNickname = newNickname.trim()
+        if (!trimmedNickname.matches(Regex("^[A-Za-z ]{3,24}$"))) {
+            throw IllegalArgumentException("Nickname must be 3-24 English letters (space allowed)")
         }
 
-        // Check uniqueness
-        if (userRepository.existsByNickname(newNickname)) {
-            throw IllegalArgumentException("Nickname already exists")
-        }
+        // Generate nicknameKey from nickname
+        var nicknameKey = trimmedNickname.lowercase().replace(" ", "_")
 
         val user = userRepository.findById(userId)
             .orElseThrow { EntityNotFoundException("User not found") }
-        val updatedUser = user.copy(nickname = newNickname)
+
+        // Check uniqueness of nicknameKey (skip if it's the same user)
+        if (userRepository.existsByNicknameKey(nicknameKey)) {
+            val existingUser = userRepository.findAll().find { it.nicknameKey == nicknameKey }
+            if (existingUser?.id != userId) {
+                // Add random 4-digit suffix for collision
+                val suffix = kotlin.random.Random.nextInt(1000, 10000)
+                nicknameKey = "${nicknameKey}_$suffix"
+            }
+        }
+
+        val updatedUser = user.copy(
+            nickname = trimmedNickname,
+            nicknameKey = nicknameKey
+        )
         return userRepository.save(updatedUser)
     }
 
@@ -124,17 +140,29 @@ class UserService(
 
         // Update nickname if provided and different
         if (nickname != null && nickname != user.nickname) {
-            // Validate nickname format (English letters only, 3-30 chars)
-            if (!nickname.matches(Regex("^[A-Za-z]{3,30}$"))) {
-                throw IllegalArgumentException("Nickname must be 3-30 English letters")
+            val trimmedNickname = nickname.trim()
+            // Validate nickname format (English letters and space, 3-24 chars)
+            if (!trimmedNickname.matches(Regex("^[A-Za-z ]{3,24}$"))) {
+                throw IllegalArgumentException("Nickname must be 3-24 English letters (space allowed)")
             }
 
-            // Check uniqueness
-            if (userRepository.existsByNickname(nickname)) {
-                throw IllegalArgumentException("Nickname already exists")
+            // Generate nicknameKey from nickname
+            var nicknameKey = trimmedNickname.lowercase().replace(" ", "_")
+
+            // Check uniqueness of nicknameKey (skip if it's the same user)
+            if (userRepository.existsByNicknameKey(nicknameKey)) {
+                val existingUser = userRepository.findAll().find { it.nicknameKey == nicknameKey }
+                if (existingUser?.id != userId) {
+                    // Add random 4-digit suffix for collision
+                    val suffix = kotlin.random.Random.nextInt(1000, 10000)
+                    nicknameKey = "${nicknameKey}_$suffix"
+                }
             }
 
-            updatedUser = updatedUser.copy(nickname = nickname)
+            updatedUser = updatedUser.copy(
+                nickname = trimmedNickname,
+                nicknameKey = nicknameKey
+            )
         }
 
         // Update countries

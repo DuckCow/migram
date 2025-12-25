@@ -1,6 +1,7 @@
 package com.example.backend.web.service
 
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
@@ -12,12 +13,13 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import org.springframework.security.access.AccessDeniedException
 
 @Service
+@ConditionalOnProperty(name = ["storage.type"], havingValue = "s3")
 class S3Service(
     private val s3Client: S3Client,
     private val imageOptimizationService: ImageOptimizationService,
     @Value("\${cloud.aws.s3.bucket}")  val bucket: String
-) {
-    fun uploadFile(file: MultipartFile, fileName: String): String {
+) : FileStorageService {
+    override fun uploadFile(file: MultipartFile, fileName: String): String? {
         try {
             // 현재 인증된 사용자 확인
             val authentication = SecurityContextHolder.getContext().authentication
@@ -42,7 +44,7 @@ class S3Service(
                 .key("posts/$fileName")
                 .contentType(contentType)
                 .contentLength(fileSize)
-                //.acl(ObjectCannedACL.PUBLIC_READ)
+                .acl(ObjectCannedACL.PUBLIC_READ)
                 .build()
 
             // 파일 업로드
@@ -51,7 +53,10 @@ class S3Service(
             // S3 URL 반환
             return "https://$bucket.s3.amazonaws.com/posts/$fileName"
         } catch (e: Exception) {
-            throw RuntimeException("Failed to upload file to S3", e)
+            // S3 업로드 실패 시 경고 로그 출력하고 null 반환 (이미지 없이 게시글 저장)
+            println("WARNING: Failed to upload file to S3: ${e.message}")
+            println("Post will be created without image")
+            return null
         }
     }
 
@@ -59,7 +64,7 @@ class S3Service(
         return contentType?.startsWith("image/") == true
     }
 
-    fun deleteFile(fileName: String) {
+    override fun deleteFile(fileName: String) {
         try {
             val deleteRequest = DeleteObjectRequest.builder()
                 .bucket(bucket)

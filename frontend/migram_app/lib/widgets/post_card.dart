@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/post_model.dart';
+import '../screens/user_profile_screen.dart';
 import 'vote_button.dart';
 
 class PostCard extends StatelessWidget {
@@ -29,40 +30,73 @@ class PostCard extends StatelessWidget {
               // Header: Avatar, nickname, timestamp, country flag
               Row(
                 children: [
-                  // Avatar
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundImage: post.user.profilePicture != null
-                        ? NetworkImage(post.user.profilePicture!)
-                        : null,
-                    child: post.user.profilePicture == null
-                        ? Text(
-                            post.user.displayName[0].toUpperCase(),
-                            style: const TextStyle(fontSize: 14),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  // Nickname
+                  // Avatar and Nickname (tappable if not anonymous)
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.user.displayName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                    child: InkWell(
+                      onTap: post.isAnonymous || post.user == null
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      UserProfileScreen(userId: post.user!.id),
+                                ),
+                              );
+                            },
+                      child: Row(
+                        children: [
+                          // Avatar
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor:
+                                post.isAnonymous ? Colors.grey[400] : null,
+                            backgroundImage: !post.isAnonymous &&
+                                    post.user?.profilePicture != null
+                                ? NetworkImage(post.user!.profilePicture!)
+                                : null,
+                            child: post.isAnonymous
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 18,
+                                    color: Colors.white,
+                                  )
+                                : (post.user?.profilePicture == null
+                                    ? Text(
+                                        post.user!.displayName[0].toUpperCase(),
+                                        style: const TextStyle(fontSize: 14),
+                                      )
+                                    : null),
                           ),
-                        ),
-                        Text(
-                          timeago.format(post.createdAt, locale: 'ko'),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
+                          const SizedBox(width: 8),
+                          // Nickname or "Anonymous"
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  post.isAnonymous
+                                      ? 'Anonymous'
+                                      : post.user!.displayName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: post.isAnonymous
+                                        ? Colors.grey[600]
+                                        : null,
+                                  ),
+                                ),
+                                Text(
+                                  timeago.format(post.createdAt, locale: 'ko'),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   // Country flag

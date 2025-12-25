@@ -95,8 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final posts = await _postService.getFeed(page: 0, size: 20);
-      // Filter posts by current user
-      final userPosts = posts.where((post) => post.user.id == _profile!.user.id).toList();
+      // Filter posts by current user (excluding anonymous posts)
+      final userPosts = posts.where((post) => !post.isAnonymous && post.user?.id == _profile!.user.id).toList();
 
       setState(() {
         _userPosts = userPosts;

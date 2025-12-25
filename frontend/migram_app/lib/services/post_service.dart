@@ -82,6 +82,7 @@ class PostService {
     required String content,
     required String country,
     String? imageUrl,
+    bool isAnonymous = false,
   }) async {
     try {
       final requestData = {
@@ -89,6 +90,7 @@ class PostService {
         'content': content,
         'country': country,
         'imageUrl': imageUrl,
+        'isAnonymous': isAnonymous,
       };
 
       final response = await _dioService.post(
@@ -156,12 +158,14 @@ class PostService {
     required String content,
     required String country,
     File? imageFile,
+    bool isAnonymous = false,
   }) async {
     try {
       final formData = FormData.fromMap({
         'title': title,
         'content': content,
         'country': country,
+        'isAnonymous': isAnonymous,
       });
 
       if (imageFile != null) {

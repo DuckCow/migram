@@ -8,6 +8,7 @@ import '../services/user_service.dart';
 import '../widgets/vote_button.dart';
 import '../widgets/comment_card.dart';
 import 'edit_post_screen.dart';
+import 'user_profile_screen.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final int postId;
@@ -225,7 +226,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   bool _isPostOwner() {
-    return _currentUserId != null && _post != null && _currentUserId == _post!.user.id;
+    return _currentUserId != null && _post != null && !_post!.isAnonymous && _currentUserId == _post!.user?.id;
   }
 
   @override
@@ -300,38 +301,71 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           // Header: Avatar, nickname, timestamp, country flag
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: _post!.user.profilePicture != null
-                    ? NetworkImage(_post!.user.profilePicture!)
-                    : null,
-                child: _post!.user.profilePicture == null
-                    ? Text(
-                        _post!.user.displayName[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 16),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 10),
+              // Avatar and user info (tappable if not anonymous)
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _post!.user.displayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                child: InkWell(
+                  onTap: _post!.isAnonymous || _post!.user == null
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfileScreen(userId: _post!.user!.id),
+                            ),
+                          );
+                        },
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor:
+                            _post!.isAnonymous ? Colors.grey[400] : null,
+                        backgroundImage: !_post!.isAnonymous &&
+                                _post!.user?.profilePicture != null
+                            ? NetworkImage(_post!.user!.profilePicture!)
+                            : null,
+                        child: _post!.isAnonymous
+                            ? const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.white,
+                              )
+                            : (_post!.user?.profilePicture == null
+                                ? Text(
+                                    _post!.user!.displayName[0].toUpperCase(),
+                                    style: const TextStyle(fontSize: 16),
+                                  )
+                                : null),
                       ),
-                    ),
-                    Text(
-                      timeago.format(_post!.createdAt, locale: 'ko'),
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 13,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _post!.isAnonymous
+                                  ? 'Anonymous'
+                                  : _post!.user!.displayName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: _post!.isAnonymous
+                                    ? Colors.grey[600]
+                                    : null,
+                              ),
+                            ),
+                            Text(
+                              timeago.format(_post!.createdAt, locale: 'ko'),
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Text(

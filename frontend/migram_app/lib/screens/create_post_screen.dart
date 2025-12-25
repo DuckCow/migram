@@ -20,6 +20,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String? _selectedCountry;
   File? _selectedImage;
   bool _isSubmitting = false;
+  bool _isAnonymous = false;
 
   // 주요 국가 목록 (백엔드 Country enum의 code 값 사용)
   final Map<String, String> _countries = {
@@ -129,12 +130,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           content: _contentController.text.trim(),
           country: _selectedCountry!,
           imageFile: _selectedImage,
+          isAnonymous: _isAnonymous,
         );
       } else {
         await _postService.createPost(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           country: _selectedCountry!,
+          isAnonymous: _isAnonymous,
         );
       }
 
@@ -313,6 +316,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
             ],
+
+            // Anonymous checkbox
+            CheckboxListTile(
+              value: _isAnonymous,
+              onChanged: (value) {
+                setState(() {
+                  _isAnonymous = value ?? false;
+                });
+              },
+              title: const Text('익명으로 게시'),
+              subtitle: const Text('작성자 정보가 표시되지 않습니다'),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
 
             // Helper text
             const Text(
