@@ -196,10 +196,14 @@ class _CommentCardState extends State<CommentCard> {
             ],
           ),
           const SizedBox(height: 8),
-          // Comment content
+          // Comment content (grayed out if deleted)
           Text(
             widget.comment.content,
-            style: const TextStyle(fontSize: 14),
+            style: TextStyle(
+              fontSize: 14,
+              color: widget.comment.isDeleted ? Colors.grey[600] : Colors.black87,
+              fontStyle: widget.comment.isDeleted ? FontStyle.italic : FontStyle.normal,
+            ),
           ),
           // Action buttons row
           const SizedBox(height: 4),
@@ -246,8 +250,8 @@ class _CommentCardState extends State<CommentCard> {
                   ),
                 ),
               ],
-              // Edit button (only for owner)
-              if (_isCommentOwner()) ...[
+              // Edit and Delete buttons (only for owner and not deleted)
+              if (_isCommentOwner() && !widget.comment.isDeleted) ...[
                 const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: _editComment,

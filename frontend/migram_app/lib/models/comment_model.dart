@@ -14,6 +14,7 @@ class Comment {
   final int? parentCommentId; // For nested replies
   final List<Comment> replies; // Child comments
   final int replyCount; // Number of replies
+  final bool isDeleted; // Soft delete flag
 
   Comment({
     required this.id,
@@ -29,6 +30,7 @@ class Comment {
     this.parentCommentId,
     this.replies = const [],
     this.replyCount = 0,
+    this.isDeleted = false,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,7 @@ class Comment {
               .toList() ??
           [],
       replyCount: json['replyCount'] as int? ?? 0,
+      isDeleted: json['isDeleted'] as bool? ?? false,
     );
   }
 
@@ -67,6 +70,7 @@ class Comment {
       'parentCommentId': parentCommentId,
       'replies': replies.map((reply) => reply.toJson()).toList(),
       'replyCount': replyCount,
+      'isDeleted': isDeleted,
     };
   }
 }

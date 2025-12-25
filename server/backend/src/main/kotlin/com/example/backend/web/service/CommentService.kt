@@ -134,6 +134,23 @@ class CommentService(
             throw SecurityException("You are not authorized to delete this comment")
         }
 
-        commentRepository.delete(comment)
+        // Soft delete: set isDeleted flag and replace content
+        val softDeletedComment = comment.copy(
+            isDeleted = true,
+            content = "This comment was deleted."
+        )
+
+        commentRepository.save(softDeletedComment)
+
+        // Unlink child comments: set their parentComment to null
+        // This preserves @mentions in child comment content
+        if (comment.replies.isNotEmpty()) {
+            comment.replies.forEach { reply ->
+                val unlinkedReply = reply.copy(
+                    parentComment = null
+                )
+                commentRepository.save(unlinkedReply)
+            }
+        }
     }
 }
