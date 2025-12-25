@@ -20,6 +20,10 @@ class S3Service(
     @Value("\${cloud.aws.s3.bucket}")  val bucket: String
 ) : FileStorageService {
     override fun uploadFile(file: MultipartFile, fileName: String): String? {
+        return uploadFile(file, fileName, "posts")
+    }
+
+    override fun uploadFile(file: MultipartFile, fileName: String, pathPrefix: String): String? {
         try {
             // 현재 인증된 사용자 확인
             val authentication = SecurityContextHolder.getContext().authentication
@@ -41,7 +45,7 @@ class S3Service(
             // 메타데이터 설정
             val metadata = PutObjectRequest.builder()
                 .bucket(bucket)
-                .key("posts/$fileName")
+                .key("$pathPrefix/$fileName")
                 .contentType(contentType)
                 .contentLength(fileSize)
                 .acl(ObjectCannedACL.PUBLIC_READ)
@@ -51,11 +55,11 @@ class S3Service(
             s3Client.putObject(metadata, RequestBody.fromBytes(fileData))
 
             // S3 URL 반환
-            return "https://$bucket.s3.amazonaws.com/posts/$fileName"
+            return "https://$bucket.s3.amazonaws.com/$pathPrefix/$fileName"
         } catch (e: Exception) {
-            // S3 업로드 실패 시 경고 로그 출력하고 null 반환 (이미지 없이 게시글 저장)
+            // S3 업로드 실패 시 경고 로그 출력하고 null 반환
             println("WARNING: Failed to upload file to S3: ${e.message}")
-            println("Post will be created without image")
+            println("Upload will fail gracefully")
             return null
         }
     }
