@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/chat_model.dart';
 import 'token_service.dart';
 
@@ -181,12 +183,82 @@ class ChatService {
     }
   }
 
-  /// Send a message in a chat room
-  Future<MessageResult> sendMessage(int chatRoomId, String content) async {
+  /// Upload image for chat message
+  Future<String?> uploadChatImage(File imageFile) async {
+    try {
+      final accessToken = await _tokenService.getAccessToken();
+      if (accessToken == null) {
+        print('No access token for image upload');
+        return null;
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload-image'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add file to request
+      final fileName = imageFile.path.split('/').last;
+      final fileExtension = fileName.split('.').last.toLowerCase();
+
+      // Determine content type
+      MediaType contentType;
+      if (fileExtension == 'jpg' || fileExtension == 'jpeg') {
+        contentType = MediaType('image', 'jpeg');
+      } else if (fileExtension == 'png') {
+        contentType = MediaType('image', 'png');
+      } else {
+        contentType = MediaType('image', 'jpeg'); // Default
+      }
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'file',
+        imageFile.path,
+        contentType: contentType,
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data['imageUrl'];
+        }
+      }
+
+      print('Failed to upload image: ${response.statusCode} ${response.body}');
+      return null;
+    } catch (e) {
+      print('Error uploading image: $e');
+      return null;
+    }
+  }
+
+  /// Send a message in a chat room (with optional image)
+  Future<MessageResult> sendMessage(
+    int chatRoomId, {
+    String? content,
+    String? imageUrl,
+  }) async {
     try {
       final accessToken = await _tokenService.getAccessToken();
       if (accessToken == null) {
         return MessageResult(success: false, message: 'Not authenticated');
+      }
+
+      final Map<String, dynamic> body = {};
+      if (content != null && content.isNotEmpty) {
+        body['content'] = content;
+      }
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        body['imageUrl'] = imageUrl;
+      }
+
+      if (body.isEmpty) {
+        return MessageResult(success: false, message: 'Message must have content or image');
       }
 
       final response = await http.post(
@@ -195,9 +267,7 @@ class ChatService {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'content': content,
-        }),
+        body: jsonEncode(body),
       );
 
       final data = jsonDecode(response.body);

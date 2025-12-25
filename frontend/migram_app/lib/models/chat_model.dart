@@ -44,7 +44,8 @@ class Message {
   final int senderId;
   final String? senderNickname;
   final String? senderProfilePicture;
-  final String content;
+  final String? content;
+  final String? imageUrl;
   final bool isRead;
   final String? readAt;
   final String createdAt;
@@ -55,7 +56,8 @@ class Message {
     required this.senderId,
     this.senderNickname,
     this.senderProfilePicture,
-    required this.content,
+    this.content,
+    this.imageUrl,
     required this.isRead,
     this.readAt,
     required this.createdAt,
@@ -69,6 +71,7 @@ class Message {
       senderNickname: json['senderNickname'],
       senderProfilePicture: json['senderProfilePicture'],
       content: json['content'],
+      imageUrl: json['imageUrl'],
       isRead: json['isRead'] ?? false,
       readAt: json['readAt'],
       createdAt: json['createdAt'],
