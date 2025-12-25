@@ -6,8 +6,10 @@ import '../services/user_service.dart';
 import '../services/post_service.dart';
 import '../services/follow_service.dart';
 import '../services/block_service.dart';
+import '../services/chat_service.dart';
 import '../widgets/post_card.dart';
 import 'follow_list_screen.dart';
+import 'chat_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -26,6 +28,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final PostService _postService = PostService();
   final FollowService _followService = FollowService();
   final BlockService _blockService = BlockService();
+  final ChatService _chatService = ChatService();
 
   UserModel? _user;
   List<Post> _userPosts = [];
@@ -229,6 +232,72 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  Future<void> _handleMessage() async {
+    if (_user == null) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Try to create or get chat room
+      final result = await _chatService.createOrGetChatRoom(_user!.id);
+
+      // Close loading indicator
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (result.success && result.chatRoom != null) {
+        // Navigate to chat screen
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(chatRoom: result.chatRoom!),
+            ),
+          );
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.message)),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading indicator if still open
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('메시지 전송 실패: $e')),
+        );
+      }
+    }
+  }
+
+  String _getMessageButtonText() {
+    // Always show "메시지" - backend will handle if it's a direct message or message request
+    return '메시지';
+  }
+
+  bool _canSendMessage() {
+    // Always allow message attempts
+    // The backend will enforce actual permission rules based on:
+    // - DM privacy settings (followers_only, everyone)
+    // - Block status
+    // - Follow relationships
+    return true;
+  }
+
   String _getCountryFlag(String? countryCode) {
     if (countryCode == null) return '';
     final countryFlags = {
@@ -337,85 +406,112 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildProfileHeader() {
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Row(
+      child: Column(
         children: [
-          // Avatar
-          CircleAvatar(
-            radius: 40,
-            backgroundImage: _user!.profilePicture != null
-                ? NetworkImage(_user!.profilePicture!)
-                : null,
-            child: _user!.profilePicture == null
-                ? Text(
-                    _user!.displayName[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 32),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 20),
+          Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: _user!.profilePicture != null
+                    ? NetworkImage(_user!.profilePicture!)
+                    : null,
+                child: _user!.profilePicture == null
+                    ? Text(
+                        _user!.displayName[0].toUpperCase(),
+                        style: const TextStyle(fontSize: 32),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 20),
 
-          // User info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _user!.displayName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _user!.email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-                if (_user!.originCountry != null ||
-                    _user!.currentCountry != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (_user!.originCountry != null) ...[
-                        Text(
-                          _getCountryFlag(_user!.originCountry),
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text('출신'),
-                        const SizedBox(width: 12),
-                      ],
-                      if (_user!.currentCountry != null) ...[
-                        Text(
-                          _getCountryFlag(_user!.currentCountry),
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text('거주'),
-                      ],
+              // User info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _user!.displayName,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _user!.email,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    if (_user!.originCountry != null ||
+                        _user!.currentCountry != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (_user!.originCountry != null) ...[
+                            Text(
+                              _getCountryFlag(_user!.originCountry),
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text('출신'),
+                            const SizedBox(width: 12),
+                          ],
+                          if (_user!.currentCountry != null) ...[
+                            Text(
+                              _getCountryFlag(_user!.currentCountry),
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text('거주'),
+                          ],
+                        ],
+                      ),
                     ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Action buttons (only for other users)
+          if (!_isCurrentUser) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                // Follow button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _handleFollow,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _followStatus?.status == FollowStatus.accepted
+                          ? Colors.grey[300]
+                          : Theme.of(context).primaryColor,
+                      foregroundColor:
+                          _followStatus?.status == FollowStatus.accepted ? Colors.black : Colors.white,
+                    ),
+                    child: Text(_getFollowButtonText()),
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                // Message button
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _canSendMessage() ? _handleMessage : null,
+                    icon: const Icon(Icons.message),
+                    label: Text(_getMessageButtonText()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).primaryColor,
+                      side: BorderSide(color: Theme.of(context).primaryColor),
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-
-          // Follow button (only for other users)
-          if (!_isCurrentUser)
-            ElevatedButton(
-              onPressed: _handleFollow,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _followStatus?.status == FollowStatus.accepted
-                    ? Colors.grey[300]
-                    : Theme.of(context).primaryColor,
-                foregroundColor:
-                    _followStatus?.status == FollowStatus.accepted ? Colors.black : Colors.white,
-              ),
-              child: Text(_getFollowButtonText()),
-            ),
+          ],
         ],
       ),
     );

@@ -1,8 +1,10 @@
 package com.example.backend.web.service
 
 import com.example.backend.web.model.Block
+import com.example.backend.web.model.ChatRoomStatus
 import com.example.backend.web.model.FollowStatus
 import com.example.backend.web.repository.BlockRepository
+import com.example.backend.web.repository.ChatRoomRepository
 import com.example.backend.web.repository.FollowRepository
 import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.util.SecurityUtils
@@ -21,13 +23,15 @@ class BlockService(
     private val blockRepository: BlockRepository,
     private val userRepository: UserRepository,
     private val followRepository: FollowRepository,
+    private val chatRoomRepository: ChatRoomRepository,
     private val securityUtils: SecurityUtils
 ) {
 
     /**
-     * Block a user
+     * Block a user (Instagram-style)
      * - Create block relationship
      * - Unfollow both directions (if exists)
+     * - Block all chat rooms between users (hides threads for blocker)
      * - Prevent future follows and DMs
      */
     fun blockUser(targetUserId: Long): BlockResult {
@@ -67,6 +71,13 @@ class BlockService(
             if (follow.status == FollowStatus.ACCEPTED || follow.status == FollowStatus.REQUESTED) {
                 followRepository.delete(follow)
             }
+        }
+
+        // Block all chat rooms between these users
+        val chatRoom = chatRoomRepository.findByUsers(blocker, blocked)
+        chatRoom?.let {
+            it.status = ChatRoomStatus.BLOCKED
+            chatRoomRepository.save(it)
         }
 
         return BlockResult(true, "User blocked successfully")

@@ -1,5 +1,6 @@
 package com.example.backend.web.controller
 
+import com.example.backend.web.model.DmPrivacySetting
 import com.example.backend.web.model.ProfileUpdateDTO
 import com.example.backend.web.model.UserDTO
 import com.example.backend.web.model.UserProfileDTO
@@ -37,6 +38,12 @@ class UserController(
         )
     }
 
+    @PutMapping("/me/privacy")
+    fun updateDmPrivacy(@RequestBody request: DmPrivacyUpdateRequest): UserDTO {
+        val userId = securityUtils.getCurrentUserId()
+        return userService.updateDmPrivacy(userId, request.allowDmsFrom)
+    }
+
     @GetMapping
     fun getAllUsers(): List<UserDTO> = userService.findAll()
 
@@ -57,3 +64,7 @@ class UserController(
         userService.delete(userId)
     }
 }
+
+data class DmPrivacyUpdateRequest(
+    val allowDmsFrom: DmPrivacySetting
+)

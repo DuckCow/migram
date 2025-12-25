@@ -26,6 +26,11 @@ data class MessageResult(
     val messageDTO: MessageDTO? = null
 )
 
+data class DmPermissionResult(
+    val canInitiateDm: Boolean,
+    val reason: String? = null  // null if allowed, error message if not allowed
+)
+
 @Service
 @Transactional
 class ChatService(
@@ -43,9 +48,20 @@ class ChatService(
 
     /**
      * Create or get existing chat room with another user
-     * Requirements:
-     * 1. Both users must have ACCEPTED follow relationship (mutual)
-     * 2. No block relationship between users
+     *
+     * DM Initiation Rule:
+     * A can initiate DM to B if:
+     * - B has NOT blocked A
+     * - AND (approved Follow(A->B) exists OR B.dm_privacy == EVERYONE)
+     *
+     * Permission Priority:
+     * 1. Block (highest) - Cannot DM if blocked
+     * 2. Thread exists - If thread exists, both can message (reply allowed)
+     * 3. Follow exists OR privacy is EVERYONE - Required to INITIATE new thread
+     *
+     * Once thread exists:
+     * - Both users can freely message (no limits, no approval)
+     * - Thread existence grants reply permission regardless of follow direction
      */
     fun getOrCreateChatRoom(otherUserId: Long): ChatResult {
         val currentUserId = securityUtils.getCurrentUserId()
@@ -59,40 +75,103 @@ class ChatService(
         val otherUser = userRepository.findById(otherUserId)
             .orElseThrow { EntityNotFoundException("Other user not found") }
 
-        // Check block relationship
-        if (blockService.hasBlockRelationship(currentUserId, otherUserId)) {
+        // 1. Check if current user is blocked by other user
+        if (blockService.isBlockedBy(otherUserId)) {
             return ChatResult(false, "Cannot create chat room with this user")
         }
 
-        // Check mutual follow (both directions must be ACCEPTED)
-        val currentFollowsOther = followService.isFollowing(currentUserId, otherUserId)
-        val otherFollowsCurrent = followService.isFollowing(otherUserId, currentUserId)
-
-        if (!currentFollowsOther || !otherFollowsCurrent) {
-            return ChatResult(false, "Both users must follow each other to start a chat")
+        // 2. Check if thread already exists (reply allowed)
+        val existingChatRoom = chatRoomRepository.findByUsers(currentUser, otherUser)
+        if (existingChatRoom != null) {
+            val chatRoomDTO = existingChatRoom.toChatRoomDTO(currentUserId, messageRepository)
+            return ChatResult(true, "Chat room ready", chatRoomDTO)
         }
 
-        // Find or create chat room
-        val existingChatRoom = chatRoomRepository.findByUsers(currentUser, otherUser)
+        // 3. For NEW thread initiation, check:
+        //    - Follow(currentUser -> otherUser) exists (other user accepted current user as follower)
+        //    OR
+        //    - otherUser.dm_privacy == EVERYONE (user opted-in to accept DMs from everyone)
+        val isApprovedFollower = followService.isFollowing(currentUserId, otherUserId)
 
-        val chatRoom = existingChatRoom ?: chatRoomRepository.save(
+        if (!isApprovedFollower && otherUser.allowDmsFrom == DmPrivacySetting.FOLLOWERS_ONLY) {
+            return ChatResult(false, "This user only accepts messages from approved followers")
+        }
+
+        // 4. Create new thread (immediately ACTIVE)
+        val newChatRoom = chatRoomRepository.save(
             ChatRoom(
                 user1 = currentUser,
-                user2 = otherUser
+                user2 = otherUser,
+                initiator = currentUser,  // Track who started (for analytics)
+                status = ChatRoomStatus.ACTIVE  // No approval needed, immediately active
             )
         )
 
-        val chatRoomDTO = chatRoom.toChatRoomDTO(currentUserId, messageRepository)
+        val chatRoomDTO = newChatRoom.toChatRoomDTO(currentUserId, messageRepository)
 
         return ChatResult(true, "Chat room ready", chatRoomDTO)
     }
 
     /**
-     * Send a message in a chat room
+     * Check if current user can initiate DM with target user
+     *
+     * Used by frontend to enable/disable Message button and show appropriate message
+     *
+     * Returns:
+     * - canInitiateDm: true if allowed, false if not
+     * - reason: null if allowed, error message if not allowed
+     */
+    @Transactional(readOnly = true)
+    fun canInitiateDm(otherUserId: Long): DmPermissionResult {
+        val currentUserId = securityUtils.getCurrentUserId()
+
+        // Cannot DM yourself
+        if (currentUserId == otherUserId) {
+            return DmPermissionResult(false, "Cannot message yourself")
+        }
+
+        val otherUser = userRepository.findById(otherUserId)
+            .orElseThrow { EntityNotFoundException("User not found") }
+
+        // Check if blocked
+        if (blockService.isBlockedBy(otherUserId)) {
+            return DmPermissionResult(false, "Cannot message this user")
+        }
+
+        // Check if thread already exists (can always continue existing conversation)
+        val currentUser = userRepository.findById(currentUserId)
+            .orElseThrow { EntityNotFoundException("Current user not found") }
+        val existingChatRoom = chatRoomRepository.findByUsers(currentUser, otherUser)
+        if (existingChatRoom != null) {
+            return DmPermissionResult(true)
+        }
+
+        // For new thread initiation, check:
+        // - Follow(currentUser -> otherUser) exists (approved follower)
+        // OR
+        // - otherUser.dm_privacy == EVERYONE
+        val isApprovedFollower = followService.isFollowing(currentUserId, otherUserId)
+
+        if (!isApprovedFollower && otherUser.allowDmsFrom == DmPrivacySetting.FOLLOWERS_ONLY) {
+            return DmPermissionResult(false, "This user only accepts messages from approved followers")
+        }
+
+        return DmPermissionResult(true)
+    }
+
+    /**
+     * Send a message in a chat room (Open DM)
+     *
+     * Permission priority:
+     * 1. Block (highest) - Cannot message if blocked
+     * 2. Thread exists + ACTIVE - Both users can freely message
+     *
      * Checks:
      * 1. User is part of the chat room
-     * 2. No block relationship exists
-     * 3. Mutual follow still exists
+     * 2. Chat room is ACTIVE (not BLOCKED)
+     * 3. No block relationship exists
+     *
+     * No message limits - both users can send unlimited messages
      */
     fun sendMessage(chatRoomId: Long, content: String): MessageResult {
         val currentUserId = securityUtils.getCurrentUserId()
@@ -109,20 +188,17 @@ class ChatService(
 
         val otherUser = chatRoom.getOtherUser(currentUserId)
 
+        // Check if chat room is blocked
+        if (chatRoom.status == ChatRoomStatus.BLOCKED) {
+            return MessageResult(false, "This conversation has been blocked")
+        }
+
         // Check block relationship
         if (blockService.hasBlockRelationship(currentUserId, otherUser.id)) {
             return MessageResult(false, "Cannot send message to this user")
         }
 
-        // Check mutual follow still exists
-        val currentFollowsOther = followService.isFollowing(currentUserId, otherUser.id)
-        val otherFollowsCurrent = followService.isFollowing(otherUser.id, currentUserId)
-
-        if (!currentFollowsOther || !otherFollowsCurrent) {
-            return MessageResult(false, "Both users must follow each other to send messages")
-        }
-
-        // Create message
+        // Create message (no limits, no approval needed)
         val message = Message(
             chatRoom = chatRoom,
             sender = currentUser,
@@ -291,6 +367,9 @@ private fun ChatRoom.toChatRoomDTO(currentUserId: Long, messageRepository: Messa
         lastMessageAt = lastMessageAt?.toString(),
         lastMessagePreview = lastMessagePreview,
         unreadCount = unreadCount.toInt(),
-        createdAt = createdAt.toString()
+        createdAt = createdAt.toString(),
+        status = status.name,
+        initiatorId = initiator.id,
+        isPending = false  // No pending status in Open DM model
     )
 }

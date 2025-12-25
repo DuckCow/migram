@@ -32,6 +32,10 @@ data class User (
     @Enumerated(EnumType.STRING)
     var currentCountry: Country?,
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "allow_dms_from")
+    var allowDmsFrom: DmPrivacySetting = DmPrivacySetting.FOLLOWERS_ONLY,
+
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
     val roles: MutableSet<Role> = mutableSetOf(),
@@ -81,7 +85,8 @@ data class UserDTO(
     val nickname: String?,
     val nicknameKey: String?,
     val originCountry: Country?,
-    val currentCountry: Country?
+    val currentCountry: Country?,
+    val allowDmsFrom: DmPrivacySetting = DmPrivacySetting.FOLLOWERS_ONLY
 ) {
     val displayName: String
         get() = nickname ?: name
@@ -95,7 +100,8 @@ data class UserDTO(
             nickname = this.nickname,
             nicknameKey = this.nicknameKey,
             originCountry = this.originCountry,
-            currentCountry = this.currentCountry
+            currentCountry = this.currentCountry,
+            allowDmsFrom = this.allowDmsFrom
         )
     }
 }

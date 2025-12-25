@@ -68,5 +68,8 @@ data class ChatRoomDTO(
     val lastMessageAt: String?,
     val lastMessagePreview: String?,
     val unreadCount: Int,
-    val createdAt: String
+    val createdAt: String,
+    val status: String,  // PENDING, ACTIVE, IGNORED
+    val initiatorId: Long,
+    val isPending: Boolean
 )

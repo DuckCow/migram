@@ -7,6 +7,9 @@ class ChatRoom {
   final String? lastMessagePreview;
   final int unreadCount;
   final String createdAt;
+  final String status; // PENDING, ACTIVE, IGNORED
+  final int initiatorId;
+  final bool isPending;
 
   ChatRoom({
     required this.id,
@@ -15,6 +18,9 @@ class ChatRoom {
     this.lastMessagePreview,
     required this.unreadCount,
     required this.createdAt,
+    required this.status,
+    required this.initiatorId,
+    required this.isPending,
   });
 
   factory ChatRoom.fromJson(Map<String, dynamic> json) {
@@ -25,6 +31,9 @@ class ChatRoom {
       lastMessagePreview: json['lastMessagePreview'],
       unreadCount: json['unreadCount'] ?? 0,
       createdAt: json['createdAt'],
+      status: json['status'] ?? 'ACTIVE',
+      initiatorId: json['initiatorId'] ?? 0,
+      isPending: json['isPending'] ?? false,
     );
   }
 }

@@ -173,4 +173,15 @@ class UserService(
 
         return userRepository.save(updatedUser).toDTO()
     }
+
+    /**
+     * Update user's DM privacy setting
+     */
+    fun updateDmPrivacy(userId: Long, allowDmsFrom: DmPrivacySetting): UserDTO {
+        val user = userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found") }
+
+        val updatedUser = user.copy(allowDmsFrom = allowDmsFrom)
+        return userRepository.save(updatedUser).toDTO()
+    }
 }

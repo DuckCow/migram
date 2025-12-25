@@ -86,7 +86,8 @@ fun User.toDTO(): UserDTO {
         nickname = this.nickname,
         nicknameKey = this.nicknameKey,
         originCountry = this.originCountry,
-        currentCountry = this.currentCountry
+        currentCountry = this.currentCountry,
+        allowDmsFrom = this.allowDmsFrom
     )
 }
 

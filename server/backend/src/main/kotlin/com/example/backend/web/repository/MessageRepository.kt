@@ -20,6 +20,11 @@ interface MessageRepository : JpaRepository<Message, Long> {
     fun findByChatRoomOrderByCreatedAtDesc(chatRoom: ChatRoom, pageable: Pageable): Page<Message>
 
     /**
+     * Count total messages in a chat room
+     */
+    fun countByChatRoom(chatRoom: ChatRoom): Long
+
+    /**
      * Count unread messages in a chat room for a specific user
      * (messages not sent by the user and not read)
      */
