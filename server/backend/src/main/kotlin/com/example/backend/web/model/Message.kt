@@ -25,8 +25,11 @@ data class Message(
     @JoinColumn(name = "sender_id", nullable = false)
     val sender: User,
 
-    @Column(nullable = false, length = 2000)
-    val content: String,
+    @Column(nullable = true, length = 2000)
+    val content: String? = null,
+
+    @Column(name = "image_url", length = 500)
+    val imageUrl: String? = null,
 
     @Column(name = "is_read", nullable = false)
     var isRead: Boolean = false,
@@ -36,7 +39,13 @@ data class Message(
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
-)
+) {
+    init {
+        require(content != null || imageUrl != null) {
+            "Message must have either content or imageUrl"
+        }
+    }
+}
 
 data class MessageDTO(
     val id: Long,
@@ -44,7 +53,8 @@ data class MessageDTO(
     val senderId: Long,
     val senderNickname: String?,
     val senderProfilePicture: String?,
-    val content: String,
+    val content: String?,
+    val imageUrl: String?,
     val isRead: Boolean,
     val readAt: String?,
     val createdAt: String
@@ -57,6 +67,7 @@ fun Message.toDTO() = MessageDTO(
     senderNickname = sender.nickname,
     senderProfilePicture = sender.profilePicture,
     content = content,
+    imageUrl = imageUrl,
     isRead = isRead,
     readAt = readAt?.toString(),
     createdAt = createdAt.toString()

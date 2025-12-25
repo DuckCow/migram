@@ -6,6 +6,7 @@ import com.example.backend.web.model.MessageDTO
 import com.example.backend.web.service.ChatResult
 import com.example.backend.web.service.ChatService
 import com.example.backend.web.service.DmPermissionResult
+import com.example.backend.web.service.FileStorageService
 import com.example.backend.web.service.MessageResult
 import com.example.backend.web.util.SecurityUtils
 import org.springframework.data.domain.Page
@@ -14,12 +15,15 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/chat")
 class ChatController(
     private val chatService: ChatService,
+    private val fileStorageService: FileStorageService,
     private val securityUtils: SecurityUtils
 ) {
 
@@ -62,14 +66,14 @@ class ChatController(
     }
 
     /**
-     * Send a message in a chat room
+     * Send a message in a chat room (with optional image)
      */
     @PostMapping("/rooms/{chatRoomId}/messages")
     fun sendMessage(
         @PathVariable chatRoomId: Long,
         @RequestBody request: SendMessageRequest
     ): ResponseEntity<MessageResult> {
-        val result = chatService.sendMessage(chatRoomId, request.content)
+        val result = chatService.sendMessage(chatRoomId, request.content, request.imageUrl)
         return if (result.success) {
             ResponseEntity.ok(result)
         } else {
@@ -115,6 +119,27 @@ class ChatController(
     }
 
     /**
+     * Upload image for chat message
+     */
+    @PostMapping("/upload-image")
+    fun uploadChatImage(@RequestParam("file") file: MultipartFile): ResponseEntity<ImageUploadResponse> {
+        // Generate unique filename
+        val originalFilename = file.originalFilename ?: "image.jpg"
+        val extension = originalFilename.substringAfterLast('.', "jpg")
+        val uniqueFilename = "${UUID.randomUUID()}.$extension"
+
+        // Upload to storage (S3 or local)
+        val imageUrl = fileStorageService.uploadFile(file, uniqueFilename, "chat")
+            ?: return ResponseEntity.badRequest().body(
+                ImageUploadResponse(success = false, imageUrl = null, message = "Failed to upload image")
+            )
+
+        return ResponseEntity.ok(
+            ImageUploadResponse(success = true, imageUrl = imageUrl, message = "Image uploaded successfully")
+        )
+    }
+
+    /**
      * SSE endpoint for real-time chat messages
      */
     @GetMapping("/stream")
@@ -125,5 +150,18 @@ class ChatController(
 }
 
 data class SendMessageRequest(
-    val content: String
+    val content: String? = null,
+    val imageUrl: String? = null
+) {
+    init {
+        require(content != null || imageUrl != null) {
+            "Message must have either content or imageUrl"
+        }
+    }
+}
+
+data class ImageUploadResponse(
+    val success: Boolean,
+    val imageUrl: String?,
+    val message: String
 )

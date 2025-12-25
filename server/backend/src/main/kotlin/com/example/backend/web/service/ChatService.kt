@@ -172,8 +172,9 @@ class ChatService(
      * 3. No block relationship exists
      *
      * No message limits - both users can send unlimited messages
+     * Supports text messages, image messages, or both
      */
-    fun sendMessage(chatRoomId: Long, content: String): MessageResult {
+    fun sendMessage(chatRoomId: Long, content: String? = null, imageUrl: String? = null): MessageResult {
         val currentUserId = securityUtils.getCurrentUserId()
         val currentUser = userRepository.findById(currentUserId)
             .orElseThrow { EntityNotFoundException("Current user not found") }
@@ -202,16 +203,18 @@ class ChatService(
         val message = Message(
             chatRoom = chatRoom,
             sender = currentUser,
-            content = content
+            content = content,
+            imageUrl = imageUrl
         )
         val savedMessage = messageRepository.save(message)
 
         // Update chat room metadata
         chatRoom.lastMessageAt = savedMessage.createdAt
-        chatRoom.lastMessagePreview = if (content.length > 100) {
-            content.substring(0, 100) + "..."
-        } else {
-            content
+        chatRoom.lastMessagePreview = when {
+            imageUrl != null && content != null -> content.take(100) + if (content.length > 100) "..." else ""
+            imageUrl != null -> "📷 Photo"
+            content != null -> content.take(100) + if (content.length > 100) "..." else ""
+            else -> "Message"
         }
         chatRoomRepository.save(chatRoom)
 

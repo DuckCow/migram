@@ -20,15 +20,18 @@ class LocalFileStorageService(
     @Value("\${server.port:8080}") private val serverPort: String
 ) : FileStorageService {
 
-    private val uploadPath: Path = Paths.get(uploadDir, "posts")
-
     init {
-        // Create upload directory if it doesn't exist
-        Files.createDirectories(uploadPath)
-        println("Local file storage initialized at: ${uploadPath.toAbsolutePath()}")
+        // Create upload directories if they don't exist
+        Files.createDirectories(Paths.get(uploadDir, "posts"))
+        Files.createDirectories(Paths.get(uploadDir, "chat"))
+        println("Local file storage initialized at: ${Paths.get(uploadDir).toAbsolutePath()}")
     }
 
     override fun uploadFile(file: MultipartFile, fileName: String): String? {
+        return uploadFile(file, fileName, "posts")
+    }
+
+    override fun uploadFile(file: MultipartFile, fileName: String, pathPrefix: String): String? {
         try {
             // Verify authentication
             val authentication = SecurityContextHolder.getContext().authentication
@@ -47,16 +50,20 @@ class LocalFileStorageService(
                 Triple(file.bytes, file.contentType ?: "application/octet-stream", file.size)
             }
 
+            // Create directory for pathPrefix if it doesn't exist
+            val prefixPath = Paths.get(uploadDir, pathPrefix)
+            Files.createDirectories(prefixPath)
+
             // Save file to local directory
-            val targetPath = uploadPath.resolve(fileName)
+            val targetPath = prefixPath.resolve(fileName)
             Files.write(targetPath, fileData)
 
             // Return URL to access the file
             val baseUrl = "http://localhost:$serverPort"
-            return "$baseUrl/uploads/posts/$fileName"
+            return "$baseUrl/uploads/$pathPrefix/$fileName"
         } catch (e: Exception) {
             println("WARNING: Failed to upload file locally: ${e.message}")
-            println("Post will be created without image")
+            println("Upload will fail gracefully")
             e.printStackTrace()
             return null
         }
@@ -68,9 +75,21 @@ class LocalFileStorageService(
 
     override fun deleteFile(fileName: String) {
         try {
-            val filePath = uploadPath.resolve(fileName)
-            Files.deleteIfExists(filePath)
-            println("Deleted local file: $fileName")
+            // Try to delete from posts directory (default)
+            val postsPath = Paths.get(uploadDir, "posts", fileName)
+            if (Files.deleteIfExists(postsPath)) {
+                println("Deleted local file from posts: $fileName")
+                return
+            }
+
+            // Try to delete from chat directory
+            val chatPath = Paths.get(uploadDir, "chat", fileName)
+            if (Files.deleteIfExists(chatPath)) {
+                println("Deleted local file from chat: $fileName")
+                return
+            }
+
+            println("WARNING: File not found in any directory: $fileName")
         } catch (e: Exception) {
             println("WARNING: Failed to delete local file: ${e.message}")
             // Don't throw exception, just log the error
