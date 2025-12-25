@@ -40,7 +40,8 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
     voteRepository: VoteRepository,
     currentUserId: Long?,
     userRepository: UserRepository,
-    includeReplies: Boolean = true  // 대댓글 포함 여부 (무한 재귀 방지)
+    includeReplies: Boolean = true,  // 대댓글 포함 여부
+    maxDepth: Int = 10  // 최대 중첩 깊이 (무한 재귀 방지)
 ): com.example.backend.web.model.CommentResponseDTO {
     val upvotes = voteRepository.countByCommentAndVoteType(this, VoteType.UP)
     val downvotes = voteRepository.countByCommentAndVoteType(this, VoteType.DOWN)
@@ -50,12 +51,12 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
         user?.let { voteRepository.findByUserAndComment(it, this)?.voteType }
     } else null
 
-    // 대댓글 변환 (재귀적으로 처리, 하지만 1단계만)
-    val repliesDTO = if (includeReplies) {
+    // 대댓글 변환 (재귀적으로 모든 깊이 처리)
+    val repliesDTO = if (includeReplies && maxDepth > 0) {
         this.replies
             .filter { it.parentComment?.id == this.id }  // 이 댓글의 직접 자식만
             .map { reply ->
-                reply.toResponseDTO(voteRepository, currentUserId, userRepository, includeReplies = false)
+                reply.toResponseDTO(voteRepository, currentUserId, userRepository, includeReplies = true, maxDepth = maxDepth - 1)
             }
     } else emptyList()
 
