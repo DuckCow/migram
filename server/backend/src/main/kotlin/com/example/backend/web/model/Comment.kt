@@ -25,8 +25,12 @@ data class Comment(
     @JoinColumn(name = "parent_comment_id")
     val parentComment: Comment? = null,
 
-    // 대댓글 목록
-    @OneToMany(mappedBy = "parentComment", cascade = [CascadeType.ALL], orphanRemoval = true)
+    // Soft delete flag
+    @Column(name = "is_deleted", nullable = false)
+    val isDeleted: Boolean = false,
+
+    // 대댓글 목록 (NO cascade delete - children remain when parent is soft-deleted)
+    @OneToMany(mappedBy = "parentComment", cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     val replies: MutableList<Comment> = mutableListOf(),
 
     @OneToMany(mappedBy = "comment", cascade = [CascadeType.ALL], orphanRemoval = true)
@@ -55,7 +59,8 @@ data class CommentResponseDTO(
     val modifiedAt: String,
     val parentCommentId: Long? = null,  // 부모 댓글 ID
     val replies: List<CommentResponseDTO> = emptyList(),  // 대댓글 목록
-    val replyCount: Int = 0  // 대댓글 개수
+    val replyCount: Int = 0,  // 대댓글 개수
+    val isDeleted: Boolean = false  // Soft delete flag
 )
 
 

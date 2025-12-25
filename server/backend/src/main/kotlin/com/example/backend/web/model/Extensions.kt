@@ -52,6 +52,7 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
     } else null
 
     // 대댓글 변환 (재귀적으로 모든 깊이 처리)
+    // Include all replies, even deleted ones (they will show "This comment was deleted.")
     val repliesDTO = if (includeReplies && maxDepth > 0) {
         this.replies
             .filter { it.parentComment?.id == this.id }  // 이 댓글의 직접 자식만
@@ -60,9 +61,16 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
             }
     } else emptyList()
 
+    // Replace content with "This comment was deleted." if soft-deleted
+    val displayContent = if (this.isDeleted) {
+        "This comment was deleted."
+    } else {
+        this.content
+    }
+
     return com.example.backend.web.model.CommentResponseDTO(
         id = this.id,
-        content = this.content,
+        content = displayContent,
         postId = this.post.id,
         userDTO = this.user.toDTO(),
         upvotes = upvotes,
@@ -74,7 +82,8 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
         modifiedAt = (this.modifiedAt ?: LocalDateTime.now()).toString(),
         parentCommentId = this.parentComment?.id,
         replies = repliesDTO,
-        replyCount = this.replies.size
+        replyCount = this.replies.size,  // Count all replies including deleted ones
+        isDeleted = this.isDeleted
     )
 }
 
