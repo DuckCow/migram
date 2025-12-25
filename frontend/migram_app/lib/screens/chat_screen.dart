@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:image_picker/image_picker.dart';
 import '../models/chat_model.dart';
 import '../models/user_model.dart';
 import '../services/chat_service.dart';
@@ -22,10 +24,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final UserService _userService = UserService();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  File? _selectedImage;
+  bool _isUploadingImage = false;
 
   UserModel? _currentUser;
 
@@ -114,21 +119,87 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이미지 선택 실패')),
+        );
+      }
+    }
+  }
+
+  void _removeSelectedImage() {
+    setState(() {
+      _selectedImage = null;
+    });
+  }
+
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
-    if (content.isEmpty) return;
+    final hasContent = content.isNotEmpty;
+    final hasImage = _selectedImage != null;
+
+    if (!hasContent && !hasImage) return;
 
     setState(() {
       _isSending = true;
     });
 
     try {
-      final result = await _chatService.sendMessage(widget.chatRoom.id, content);
+      String? imageUrl;
+
+      // Upload image if selected
+      if (_selectedImage != null) {
+        setState(() {
+          _isUploadingImage = true;
+        });
+
+        imageUrl = await _chatService.uploadChatImage(_selectedImage!);
+
+        setState(() {
+          _isUploadingImage = false;
+        });
+
+        if (imageUrl == null) {
+          setState(() {
+            _isSending = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('이미지 업로드 실패')),
+            );
+          }
+          return;
+        }
+      }
+
+      // Send message with content and/or imageUrl
+      final result = await _chatService.sendMessage(
+        widget.chatRoom.id,
+        content: hasContent ? content : null,
+        imageUrl: imageUrl,
+      );
 
       if (result.success && result.messageDTO != null) {
         setState(() {
           _messages.add(result.messageDTO!);
           _messageController.clear();
+          _selectedImage = null;
           _isSending = false;
         });
         _scrollToBottom();
@@ -145,6 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       setState(() {
         _isSending = false;
+        _isUploadingImage = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -252,54 +324,105 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
             child: SafeArea(
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: '메시지를 입력하세요...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                  // Image preview if selected
+                  if (_selectedImage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _selectedImage!.path.split('/').last,
+                              style: const TextStyle(fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: _removeSelectedImage,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Input row
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.image,
+                          color: _selectedImage != null ? Colors.blue : Colors.grey[600],
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: Colors.blue),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                        onPressed: _isSending ? null : _pickImage,
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: '메시지를 입력하세요...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: const BorderSide(color: Colors.blue),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          maxLines: null,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _sendMessage(),
                         ),
                       ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: _isSending
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send, color: Colors.white),
-                      onPressed: _isSending ? null : _sendMessage,
-                    ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: _isSending || _isUploadingImage
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.send, color: Colors.white),
+                          onPressed: (_isSending || _isUploadingImage) ? null : _sendMessage,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -379,13 +502,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             bottomRight: Radius.circular(isMe ? 4 : 16),
                           ),
                         ),
-                        child: Text(
-                          message.content,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: isMe ? Colors.white : Colors.black87,
-                          ),
-                        ),
+                        child: _buildMessageContent(message, isMe),
                       ),
                     ),
                     if (!isMe) ...[
@@ -408,6 +525,63 @@ class _ChatScreenState extends State<ChatScreen> {
           if (isMe) const SizedBox(width: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildMessageContent(Message message, bool isMe) {
+    final hasImage = message.imageUrl != null && message.imageUrl!.isNotEmpty;
+    final hasText = message.content != null && message.content!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Image if present
+        if (hasImage)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              message.imageUrl!,
+              width: 200,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 200,
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 200,
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image, size: 48),
+                );
+              },
+            ),
+          ),
+        // Text if present
+        if (hasText)
+          Padding(
+            padding: EdgeInsets.only(top: hasImage ? 4 : 0),
+            child: Text(
+              message.content!,
+              style: TextStyle(
+                fontSize: 15,
+                color: isMe ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
