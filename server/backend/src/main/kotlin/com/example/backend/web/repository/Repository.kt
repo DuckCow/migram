@@ -67,6 +67,7 @@ interface UserRepository : JpaRepository<User, Long> {
     fun findByOriginCountry(country: Country): List<User>
     fun findByOriginCountryAndCurrentCountry(origin: Country, current: Country): List<User>
     fun existsByNickname(nickname: String): Boolean  // For nickname uniqueness check
+    fun existsByNicknameKey(nicknameKey: String): Boolean  // For nickname_key uniqueness check
 
 }
 

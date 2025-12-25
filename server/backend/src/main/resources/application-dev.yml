@@ -37,3 +37,9 @@ logging:
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
     org.springframework.cache: DEBUG
+
+# File Storage Configuration
+storage:
+  type: local  # Use local file storage in development
+  local:
+    upload-dir: ./uploads  # Local directory for file uploads

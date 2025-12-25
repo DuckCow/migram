@@ -9,7 +9,8 @@ import org.springframework.security.core.userdetails.UserDetails
 @Table(
     name = "users",
     uniqueConstraints = [
-        UniqueConstraint(columnNames = ["nickname"])
+        UniqueConstraint(columnNames = ["nickname"]),
+        UniqueConstraint(columnNames = ["nickname_key"])
     ]
 )
 data class User (
@@ -21,6 +22,9 @@ data class User (
 
     @Column(unique = true)
     var nickname: String? = null,
+
+    @Column(name = "nickname_key", unique = true)
+    var nicknameKey: String? = null,
 
     @Enumerated(EnumType.STRING)
     var originCountry: Country?,
@@ -75,9 +79,13 @@ data class UserDTO(
     val email: String,
     val profilePicture: String?,
     val nickname: String?,
+    val nicknameKey: String?,
     val originCountry: Country?,
     val currentCountry: Country?
 ) {
+    val displayName: String
+        get() = nickname ?: name
+
     fun toEntity(): User {
         return User(
             id = this.id,
@@ -85,6 +93,7 @@ data class UserDTO(
             email = this.email,
             profilePicture = this.profilePicture,
             nickname = this.nickname,
+            nicknameKey = this.nicknameKey,
             originCountry = this.originCountry,
             currentCountry = this.currentCountry
         )

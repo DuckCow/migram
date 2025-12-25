@@ -6,7 +6,8 @@ class Post {
   final String content;
   final String? imageUrl;
   final String country;
-  final UserModel user;
+  final bool isAnonymous;
+  final UserModel? user;  // Null when post is anonymous
   final DateTime createdAt;
   final DateTime modifiedAt;
   final int upvotes;
@@ -22,7 +23,8 @@ class Post {
     required this.content,
     this.imageUrl,
     required this.country,
-    required this.user,
+    required this.isAnonymous,
+    this.user,
     required this.createdAt,
     required this.modifiedAt,
     required this.upvotes,
@@ -38,9 +40,12 @@ class Post {
       id: json['id'] as int,
       title: json['title'] as String,
       content: json['content'] as String,
-      imageUrl: json['mediaUrl'] as String?,
+      imageUrl: json['imageUrl'] as String?,
       country: json['country'] as String,
-      user: UserModel.fromJson(json['userDTO'] as Map<String, dynamic>),
+      isAnonymous: json['isAnonymous'] as bool? ?? false,
+      user: json['userDTO'] != null
+          ? UserModel.fromJson(json['userDTO'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       modifiedAt: DateTime.parse(json['modifiedAt'] as String),
       upvotes: json['upvotes'] as int,
@@ -57,9 +62,10 @@ class Post {
       'id': id,
       'title': title,
       'content': content,
-      'mediaUrl': imageUrl,
+      'imageUrl': imageUrl,
       'country': country,
-      'user': user.toJson(),
+      'isAnonymous': isAnonymous,
+      'userDTO': user?.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'modifiedAt': modifiedAt.toIso8601String(),
       'upvotes': upvotes,

@@ -73,6 +73,7 @@ class PostController(
         @RequestPart("title") title: String,
         @RequestPart("content") content: String,
         @RequestPart("country") countryCode: String,
+        @RequestPart(value = "isAnonymous", required = false) isAnonymousStr: String?,
         @RequestPart(value = "image", required = false) image: MultipartFile?
     ): ResponseEntity<PostResponseDTO> {
         val country = try {
@@ -81,11 +82,14 @@ class PostController(
             throw IllegalArgumentException("Invalid country code: $countryCode")
         }
 
+        val isAnonymous = isAnonymousStr?.toBoolean() ?: false
+
         val postRequestDTO = PostRequestDTO(
             title = title,
             content = content,
             country = country,
-            imageUrl = null  // Will be set by service after upload
+            imageUrl = null,  // Will be set by service after upload
+            isAnonymous = isAnonymous
         )
 
         val createdPost = postService.createPost(postRequestDTO, image)

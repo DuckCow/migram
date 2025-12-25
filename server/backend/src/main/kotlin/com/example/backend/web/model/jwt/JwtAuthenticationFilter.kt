@@ -54,7 +54,12 @@ class JwtAuthenticationFilter(
                         SecurityContextHolder.getContext().authentication = authentication
                         logger.debug("Authentication set successfully for user: ${user.email}")
                     } else {
-                        logger.warn("User not found for email: $email")
+                        // JWT is valid but user not found in DB (e.g., DB reset, user deleted)
+                        logger.warn("JWT valid but user not found for email: $email - returning 401")
+                        response.status = HttpServletResponse.SC_UNAUTHORIZED
+                        response.contentType = "application/json"
+                        response.writer.write("""{"error":"User not found"}""")
+                        return
                     }
                 } else {
                     logger.warn("Token validation failed")

@@ -4,6 +4,11 @@ import com.example.backend.web.repository.UserRepository
 import org.springframework.stereotype.Service
 import kotlin.random.Random
 
+data class NicknameResult(
+    val nickname: String,      // Display name with space (e.g., "Fast Cat")
+    val nicknameKey: String    // Unique key with underscore (e.g., "fast_cat" or "fast_cat_1234")
+)
+
 @Service
 class NicknameGeneratorService {
     private val adjectives = listOf(
@@ -29,35 +34,41 @@ class NicknameGeneratorService {
     )
 
     /**
-     * Generate a random nickname with pattern: Adjective + Animal
-     * Example: "FastCat", "HappyPanda", "BraveWolf"
+     * Generate a random nickname pair with pattern: Adjective + Space + Animal
+     * Example: "Fast Cat" (display), "fast_cat" (key)
      */
-    fun generateNickname(): String {
+    private fun generateNicknamePair(): Pair<String, String> {
         val adjective = adjectives[Random.nextInt(adjectives.size)]
         val animal = animals[Random.nextInt(animals.size)]
-        return "$adjective$animal"
+        val nickname = "$adjective $animal"  // Display with space
+        val nicknameKey = "${adjective.lowercase()}_${animal.lowercase()}"  // Key with underscore
+        return Pair(nickname, nicknameKey)
     }
 
     /**
      * Generate a unique nickname by checking against existing users
-     * If duplicate, appends a number (e.g., "빠른고양이2")
+     * If duplicate key, appends a random 4-digit number (e.g., "fast_cat_1234")
      */
-    fun generateUniqueNickname(userRepository: UserRepository): String {
-        var nickname = generateNickname()
-        var counter = 2
+    fun generateUniqueNickname(userRepository: UserRepository): NicknameResult {
+        var (nickname, nicknameKey) = generateNicknamePair()
 
-        // Keep trying until we find a unique nickname
-        while (userRepository.existsByNickname(nickname)) {
-            nickname = "${generateNickname()}$counter"
-            counter++
-
-            // Safety check: if counter gets too high, just use a timestamp
-            if (counter > 100) {
-                nickname = "${generateNickname()}${System.currentTimeMillis() % 10000}"
-                break
-            }
+        // Check if nicknameKey already exists
+        if (userRepository.existsByNicknameKey(nicknameKey)) {
+            // Add random 4-digit suffix for collision
+            val suffix = Random.nextInt(1000, 10000)
+            nicknameKey = "${nicknameKey}_$suffix"
         }
 
-        return nickname
+        // Final safety check - if still exists, keep regenerating
+        var attempts = 0
+        while (userRepository.existsByNicknameKey(nicknameKey) && attempts < 10) {
+            val suffix = Random.nextInt(1000, 10000)
+            val (newNickname, baseKey) = generateNicknamePair()
+            nickname = newNickname
+            nicknameKey = "${baseKey}_$suffix"
+            attempts++
+        }
+
+        return NicknameResult(nickname, nicknameKey)
     }
 }

@@ -23,7 +23,8 @@ fun Post.toResponseDTO(
         content = this.content,
         imageUrl = this.mediaUrl,
         country = this.country,
-        userDTO = this.user.toDTO(),
+        isAnonymous = this.isAnonymous,
+        userDTO = if (this.isAnonymous) null else this.user.toDTO(),
         upvotes = upvotes,
         downvotes = downvotes,
         netVotes = upvotes - downvotes,
@@ -83,6 +84,7 @@ fun User.toDTO(): UserDTO {
         email = this.email,
         profilePicture = this.profilePicture,
         nickname = this.nickname,
+        nicknameKey = this.nicknameKey,
         originCountry = this.originCountry,
         currentCountry = this.currentCountry
     )

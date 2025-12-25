@@ -3,6 +3,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../models/comment_model.dart';
 import '../services/user_service.dart';
 import '../services/comment_service.dart';
+import '../screens/user_profile_screen.dart';
 import 'vote_button.dart';
 import 'edit_comment_dialog.dart';
 
@@ -136,26 +137,42 @@ class _CommentCardState extends State<CommentCard> {
                 ),
                 const SizedBox(width: 4),
               ],
-              // Avatar
-              CircleAvatar(
-                radius: 14,
-                backgroundImage: widget.comment.user.profilePicture != null
-                    ? NetworkImage(widget.comment.user.profilePicture!)
-                    : null,
-                child: widget.comment.user.profilePicture == null
-                    ? Text(
-                        widget.comment.user.displayName[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 12),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              // Nickname
-              Text(
-                widget.comment.user.displayName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+              // Avatar and nickname (tappable)
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          UserProfileScreen(userId: widget.comment.user.id),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Avatar
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundImage: widget.comment.user.profilePicture != null
+                          ? NetworkImage(widget.comment.user.profilePicture!)
+                          : null,
+                      child: widget.comment.user.profilePicture == null
+                          ? Text(
+                              widget.comment.user.displayName[0].toUpperCase(),
+                              style: const TextStyle(fontSize: 12),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    // Nickname
+                    Text(
+                      widget.comment.user.displayName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 6),

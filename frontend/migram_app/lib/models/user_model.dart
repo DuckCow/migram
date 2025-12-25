@@ -4,6 +4,7 @@ class UserModel {
   final String email;
   final String? profilePicture;
   final String? nickname;
+  final String? nicknameKey;
   final String? originCountry;
   final String? currentCountry;
 
@@ -13,6 +14,7 @@ class UserModel {
     required this.email,
     this.profilePicture,
     this.nickname,
+    this.nicknameKey,
     this.originCountry,
     this.currentCountry,
   });
@@ -24,6 +26,7 @@ class UserModel {
       email: json['email'] as String,
       profilePicture: json['profilePicture'] as String?,
       nickname: json['nickname'] as String?,
+      nicknameKey: json['nicknameKey'] as String?,
       originCountry: json['originCountry'] as String?,
       currentCountry: json['currentCountry'] as String?,
     );
@@ -36,6 +39,7 @@ class UserModel {
       'email': email,
       'profilePicture': profilePicture,
       'nickname': nickname,
+      'nicknameKey': nicknameKey,
       'originCountry': originCountry,
       'currentCountry': currentCountry,
     };

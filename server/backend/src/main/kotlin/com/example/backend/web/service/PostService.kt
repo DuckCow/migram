@@ -25,7 +25,7 @@ class PostService(
     private val userRepository: UserRepository,
     private val voteRepository: VoteRepository,
     private val securityUtils: SecurityUtils,
-    private val s3Service: S3Service,
+    private val fileStorageService: FileStorageService,
     private val hotAlgorithmService: HotAlgorithmService
 ) {
 
@@ -123,6 +123,7 @@ class PostService(
             content = postRequestDTO.content,
             mediaUrl = postRequestDTO.imageUrl,
             country = postRequestDTO.country,  // Country from request
+            isAnonymous = postRequestDTO.isAnonymous,
             user = user
         )
 
@@ -139,7 +140,7 @@ class PostService(
         var mediaUrl: String? = null
         if (file != null && !file.isEmpty) {
             val fileName = "${UUID.randomUUID()}-${file.originalFilename}"
-            mediaUrl = s3Service.uploadFile(file, fileName)
+            mediaUrl = fileStorageService.uploadFile(file, fileName)
         }
 
         // Country now comes from request, not user profile
@@ -148,6 +149,7 @@ class PostService(
             content = postRequestDTO.content,
             mediaUrl = mediaUrl,
             country = postRequestDTO.country,  // From request
+            isAnonymous = postRequestDTO.isAnonymous,
             user = user
         )
 
@@ -178,17 +180,17 @@ class PostService(
             // Delete old image if exists
             existingPost.mediaUrl?.let { oldUrl ->
                 val oldFileName = oldUrl.substringAfterLast("/")
-                s3Service.deleteFile(oldFileName)
+                fileStorageService.deleteFile(oldFileName)
             }
 
             // Upload new image
             val fileName = "${UUID.randomUUID()}-${file.originalFilename}"
-            newMediaUrl = s3Service.uploadFile(file, fileName)
+            newMediaUrl = fileStorageService.uploadFile(file, fileName)
         } else if (!keepExistingImage) {
             // Remove existing image
             existingPost.mediaUrl?.let { oldUrl ->
                 val oldFileName = oldUrl.substringAfterLast("/")
-                s3Service.deleteFile(oldFileName)
+                fileStorageService.deleteFile(oldFileName)
             }
             newMediaUrl = null
         }
@@ -197,7 +199,8 @@ class PostService(
             title = updatedPostRequestDTO.title,
             content = updatedPostRequestDTO.content,
             mediaUrl = newMediaUrl,
-            country = updatedPostRequestDTO.country
+            country = updatedPostRequestDTO.country,
+            isAnonymous = updatedPostRequestDTO.isAnonymous
         )
 
         return postRepository.save(updatedPost)
@@ -216,7 +219,7 @@ class PostService(
 
         post.mediaUrl?.let { url ->
             val fileName = url.substringAfterLast("/")
-            s3Service.deleteFile(fileName)
+            fileStorageService.deleteFile(fileName)
         }
 
         postRepository.delete(post)
