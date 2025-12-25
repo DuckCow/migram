@@ -24,20 +24,24 @@ interface ChatRoomRepository : JpaRepository<ChatRoom, Long> {
 
     /**
      * Find all chat rooms for a user (sorted by last message time)
+     * Excludes BLOCKED rooms (Instagram-style: blocked threads are hidden)
      */
     @Query("""
         SELECT cr FROM ChatRoom cr
-        WHERE cr.user1 = :user OR cr.user2 = :user
+        WHERE (cr.user1 = :user OR cr.user2 = :user)
+          AND cr.status != 'BLOCKED'
         ORDER BY cr.lastMessageAt DESC NULLS LAST, cr.createdAt DESC
     """)
     fun findByUser(@Param("user") user: User, pageable: Pageable): Page<ChatRoom>
 
     /**
      * Find all chat rooms for a user (unpaged, for counting purposes)
+     * Excludes BLOCKED rooms
      */
     @Query("""
         SELECT cr FROM ChatRoom cr
-        WHERE cr.user1 = :user OR cr.user2 = :user
+        WHERE (cr.user1 = :user OR cr.user2 = :user)
+          AND cr.status != 'BLOCKED'
     """)
     fun findAllByUser(@Param("user") user: User): List<ChatRoom>
 }

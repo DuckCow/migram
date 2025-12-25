@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/follow_service.dart';
 import '../widgets/follow_button.dart';
+import 'user_profile_screen.dart';
 
 enum FollowListType {
   followers,
@@ -200,59 +201,69 @@ class _FollowListScreenState extends State<FollowListScreen> {
   Widget _buildUserCard(UserModel user) {
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Avatar
-            CircleAvatar(
-              radius: 24,
-              backgroundImage: user.profilePicture != null
-                  ? NetworkImage(user.profilePicture!)
-                  : null,
-              child: user.profilePicture == null
-                  ? Text(
-                      user.displayName[0].toUpperCase(),
-                      style: TextStyle(fontSize: 20),
-                    )
-                  : null,
+      child: InkWell(
+        onTap: () {
+          // Navigate to user profile
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => UserProfileScreen(userId: user.id),
             ),
-            SizedBox(width: 12),
+          );
+        },
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 24,
+                backgroundImage: user.profilePicture != null
+                    ? NetworkImage(user.profilePicture!)
+                    : null,
+                child: user.profilePicture == null
+                    ? Text(
+                        user.displayName[0].toUpperCase(),
+                        style: TextStyle(fontSize: 20),
+                      )
+                    : null,
+              ),
+              SizedBox(width: 12),
 
-            // User info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.displayName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  if (user.currentCountry != null) ...[
-                    SizedBox(height: 4),
+              // User info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      user.currentCountry!,
+                      user.displayName,
                       style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
+                    if (user.currentCountry != null) ...[
+                      SizedBox(height: 4),
+                      Text(
+                        user.currentCountry!,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
 
-            // Follow button
-            FollowButton(
-              targetUserId: user.id,
-              onStatusChanged: () {
-                // Optional: Refresh list when follow status changes
-              },
-            ),
-          ],
+              // Follow button
+              FollowButton(
+                targetUserId: user.id,
+                onStatusChanged: () {
+                  // Optional: Refresh list when follow status changes
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

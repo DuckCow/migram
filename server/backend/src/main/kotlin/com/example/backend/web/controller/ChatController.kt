@@ -5,6 +5,7 @@ import com.example.backend.web.model.ChatRoomDTO
 import com.example.backend.web.model.MessageDTO
 import com.example.backend.web.service.ChatResult
 import com.example.backend.web.service.ChatService
+import com.example.backend.web.service.DmPermissionResult
 import com.example.backend.web.service.MessageResult
 import com.example.backend.web.util.SecurityUtils
 import org.springframework.data.domain.Page
@@ -101,6 +102,16 @@ class ChatController(
     fun getTotalUnreadCount(): ResponseEntity<UnreadCountResponse> {
         val count = chatService.getTotalUnreadCount()
         return ResponseEntity.ok(UnreadCountResponse(count))
+    }
+
+    /**
+     * Check if current user can initiate DM with target user
+     * Used by frontend to enable/disable Message button and show appropriate message
+     */
+    @GetMapping("/can-message/{userId}")
+    fun canInitiateDm(@PathVariable userId: Long): ResponseEntity<DmPermissionResult> {
+        val result = chatService.canInitiateDm(userId)
+        return ResponseEntity.ok(result)
     }
 
     /**

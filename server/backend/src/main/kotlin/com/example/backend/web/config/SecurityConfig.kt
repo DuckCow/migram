@@ -124,6 +124,8 @@ class SecurityConfig {
                     .requestMatchers(
                         AntPathRequestMatcher("/auth/profile"), // 프로필 확인은 인증 필요
                         AntPathRequestMatcher("/api/user/**"), // 사용자 정보 수정은 인증 필요
+                        AntPathRequestMatcher("/users/me/**"), // 사용자 개인 정보 수정은 인증 필요
+                        AntPathRequestMatcher("/api/chat/**"), // 채팅 기능은 인증 필요
                         AntPathRequestMatcher("/posts/**", "POST"), // 게시글 생성 및 투표는 인증 필요
                         AntPathRequestMatcher("/posts/**", "PUT"), // 게시글 수정은 인증 필요
                         AntPathRequestMatcher("/posts/**", "DELETE"), // 게시글 삭제는 인증 필요
