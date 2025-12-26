@@ -8,7 +8,7 @@ class SearchService {
   ///
   /// Parameters:
   /// - keyword: Search term (searches title and content)
-  /// - countries: List of country codes to filter by
+  /// - boardIds: List of board IDs to filter by
   /// - sortBy: Sort type (HOT, RECENT, POPULAR, COMMENTED)
   /// - dateFrom: Start date (ISO format: 2025-01-01)
   /// - dateTo: End date (ISO format: 2025-12-31)
@@ -17,7 +17,7 @@ class SearchService {
   /// - page, size: Pagination
   Future<SearchResult> search({
     String? keyword,
-    List<String>? countries,
+    List<int>? boardIds,
     SortType sortBy = SortType.hot,
     String? dateFrom,
     String? dateTo,
@@ -38,8 +38,8 @@ class SearchService {
         queryParams['keyword'] = keyword;
       }
 
-      if (countries != null && countries.isNotEmpty) {
-        queryParams['countries'] = countries.join(',');
+      if (boardIds != null && boardIds.isNotEmpty) {
+        queryParams['boardIds'] = boardIds.join(',');
       }
 
       if (dateFrom != null && dateFrom.isNotEmpty) {
@@ -79,12 +79,12 @@ class SearchService {
     return search(keyword: keyword, page: page);
   }
 
-  /// Search by countries only (for country filter)
-  Future<SearchResult> searchByCountries(
-    List<String> countries, {
+  /// Search by boards only (for board filter)
+  Future<SearchResult> searchByBoards(
+    List<int> boardIds, {
     SortType sortBy = SortType.hot,
     int page = 0,
   }) async {
-    return search(countries: countries, sortBy: sortBy, page: page);
+    return search(boardIds: boardIds, sortBy: sortBy, page: page);
   }
 }

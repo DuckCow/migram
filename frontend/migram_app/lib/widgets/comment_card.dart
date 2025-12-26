@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/comment_model.dart';
 import '../services/user_service.dart';
@@ -12,7 +13,7 @@ class CommentCard extends StatefulWidget {
   final Function(int commentId, String voteType) onVote;
   final Function(Comment)? onReply;
   final Function()? onUpdate; // Callback when comment is updated/deleted
-  final int depth;
+  final bool isParentInGroup; // True if this is a parent comment in a group
 
   const CommentCard({
     super.key,
@@ -20,7 +21,7 @@ class CommentCard extends StatefulWidget {
     required this.onVote,
     this.onReply,
     this.onUpdate,
-    this.depth = 0,
+    this.isParentInGroup = false, // Default to false for backward compatibility
   });
 
   @override
@@ -31,7 +32,6 @@ class _CommentCardState extends State<CommentCard> {
   final UserService _userService = UserService();
   final CommentService _commentService = CommentService();
   int? _currentUserId;
-  bool _showReplies = true; // Toggle for showing/hiding replies
 
   @override
   void initState() {
@@ -107,37 +107,36 @@ class _CommentCardState extends State<CommentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final leftPadding = 16.0 + (widget.depth * 24.0); // Indent nested replies
+    // Determine if this is a reply for visual styling
+    final isReply = !widget.isParentInGroup;
+
+    // Smaller avatar for replies, normal for parents
+    final avatarRadius = isReply ? 12.0 : 14.0;
+    final avatarFontSize = isReply ? 10.0 : 12.0;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(leftPadding, 12, 16, 12),
+      padding: EdgeInsets.fromLTRB(
+        isReply ? 12 : 16, // Slightly less padding for replies
+        isReply ? 8 : 12,
+        16,
+        isReply ? 8 : 12,
+      ),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!),
-          left: widget.depth > 0
-              ? BorderSide(
-                  color: Colors.grey[300]!,
-                  width: 2,
-                )
-              : BorderSide.none,
-        ),
+        border: isReply
+            ? null // No border for replies (grouped container has border)
+            : Border(
+                bottom: BorderSide(color: Colors.grey[200]!),
+              ),
+        color: isReply ? Colors.grey[50] : null, // Light background for replies
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header: Avatar, nickname, timestamp
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reply indicator for nested comments
-              if (widget.depth > 0) ...[
-                Icon(
-                  Icons.subdirectory_arrow_right,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 4),
-              ],
-              // Avatar and nickname (tappable)
+              // Avatar (tappable, smaller for replies)
               InkWell(
                 onTap: () {
                   Navigator.of(context).push(
@@ -147,153 +146,171 @@ class _CommentCardState extends State<CommentCard> {
                     ),
                   );
                 },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: CircleAvatar(
+                  radius: avatarRadius,
+                  backgroundImage: widget.comment.user.profilePicture != null
+                      ? NetworkImage(widget.comment.user.profilePicture!)
+                      : null,
+                  child: widget.comment.user.profilePicture == null
+                      ? Text(
+                          widget.comment.user.displayName[0].toUpperCase(),
+                          style: TextStyle(fontSize: avatarFontSize),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Content area with Expanded to prevent overflow
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundImage: widget.comment.user.profilePicture != null
-                          ? NetworkImage(widget.comment.user.profilePicture!)
-                          : null,
-                      child: widget.comment.user.profilePicture == null
-                          ? Text(
-                              widget.comment.user.displayName[0].toUpperCase(),
-                              style: const TextStyle(fontSize: 12),
-                            )
-                          : null,
+                    // Nickname and timestamp
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    UserProfileScreen(userId: widget.comment.user.id),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            widget.comment.user.displayName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          timeago.format(widget.comment.createdAt, locale: 'ko'),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // Nickname
+                    const SizedBox(height: 4),
+                    // Comment content (grayed out if deleted)
                     Text(
-                      widget.comment.user.displayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                      widget.comment.content,
+                      style: TextStyle(
+                        fontSize: isReply ? 13 : 14, // Slightly smaller for replies
+                        color: widget.comment.isDeleted ? Colors.grey[600] : Colors.black87,
+                        fontStyle: widget.comment.isDeleted ? FontStyle.italic : FontStyle.normal,
                       ),
+                    ),
+                    SizedBox(height: isReply ? 6 : 8), // Less spacing for replies
+                    // Action buttons row (lighter for replies)
+                    Row(
+                      children: [
+                        // Vote button (compact mode)
+                        VoteButton(
+                          upvotes: widget.comment.upvotes,
+                          downvotes: widget.comment.downvotes,
+                          currentUserVote: widget.comment.currentUserVote,
+                          onVote: (voteType) => widget.onVote(widget.comment.id, voteType),
+                          isCompact: true,
+                        ),
+                        const SizedBox(width: 8),
+                        // Reply button (only show if onReply callback is provided)
+                        if (widget.onReply != null)
+                          TextButton.icon(
+                            onPressed: () => widget.onReply!(widget.comment),
+                            icon: const Icon(Icons.reply, size: 14),
+                            label: const Text(
+                              '답글',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 24),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        // Edit/Delete buttons (show inline for parents, popup for replies)
+                        if (_isCommentOwner() && !widget.comment.isDeleted) ...[
+                          if (widget.isParentInGroup) ...[
+                            // Parent in group: show Edit/Delete inline
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: _editComment,
+                              icon: const Icon(Icons.edit, size: 14),
+                              label: const Text(
+                                '수정',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: _deleteComment,
+                              icon: const Icon(Icons.delete, size: 14, color: Colors.red),
+                              label: const Text(
+                                '삭제',
+                                style: TextStyle(fontSize: 12, color: Colors.red),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ] else ...[
+                            // Reply: show "..." menu
+                            const SizedBox(width: 8),
+                            PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: Icon(Icons.more_horiz, size: 16, color: Colors.grey[600]),
+                              iconSize: 16,
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _editComment();
+                                } else if (value == 'delete') {
+                                  _deleteComment();
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('수정'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, size: 16, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text('삭제', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
-              // Timestamp
-              Text(
-                timeago.format(widget.comment.createdAt, locale: 'ko'),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
-              ),
-              const Spacer(),
-              // Vote button (compact mode)
-              VoteButton(
-                upvotes: widget.comment.upvotes,
-                downvotes: widget.comment.downvotes,
-                currentUserVote: widget.comment.currentUserVote,
-                onVote: (voteType) => widget.onVote(widget.comment.id, voteType),
-                isCompact: true,
-              ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Comment content (grayed out if deleted)
-          Text(
-            widget.comment.content,
-            style: TextStyle(
-              fontSize: 14,
-              color: widget.comment.isDeleted ? Colors.grey[600] : Colors.black87,
-              fontStyle: widget.comment.isDeleted ? FontStyle.italic : FontStyle.normal,
-            ),
-          ),
-          // Action buttons row
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              // Show/Hide replies toggle button (only if has replies)
-              if (widget.comment.replyCount > 0)
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showReplies = !_showReplies;
-                    });
-                  },
-                  icon: Icon(
-                    _showReplies ? Icons.expand_less : Icons.expand_more,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _showReplies
-                        ? '답글 숨기기 (${widget.comment.replyCount})'
-                        : '답글 보기 (${widget.comment.replyCount})',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              // Reply button
-              if (widget.onReply != null) ...[
-                if (widget.comment.replyCount > 0) const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => widget.onReply!(widget.comment),
-                  icon: const Icon(Icons.reply, size: 16),
-                  label: const Text(
-                    '답글 달기',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-              // Edit and Delete buttons (only for owner and not deleted)
-              if (_isCommentOwner() && !widget.comment.isDeleted) ...[
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: _editComment,
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text(
-                    '수정',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: _deleteComment,
-                  icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                  label: const Text(
-                    '삭제',
-                    style: TextStyle(fontSize: 12, color: Colors.red),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          // Nested replies (only show if _showReplies is true)
-          if (_showReplies && widget.comment.replies.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...widget.comment.replies.map((reply) => CommentCard(
-                  comment: reply,
-                  onVote: widget.onVote,
-                  onReply: widget.onReply,
-                  onUpdate: widget.onUpdate,
-                  depth: widget.depth + 1,
-                )),
-          ],
         ],
       ),
     );

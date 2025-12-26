@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../models/post_model.dart';
 import '../models/search_result_model.dart';
 import '../services/search_service.dart';
 import '../services/post_service.dart';
 import '../widgets/post_card.dart';
 import '../widgets/search_filter_bottom_sheet.dart';
+import '../utils/error_handler.dart';
 import 'post_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
-  final List<String>? initialCountries;
+  final List<int>? initialBoardIds;
 
   const SearchScreen({
     super.key,
     this.initialQuery,
-    this.initialCountries,
+    this.initialBoardIds,
   });
 
   @override
@@ -34,7 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _errorMessage;
 
   // Filters
-  List<String>? _selectedCountries;
+  List<int>? _selectedBoardIds;
   SortType _sortBy = SortType.hot;
   String? _dateFrom;
   String? _dateTo;
@@ -45,11 +47,11 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _searchController.text = widget.initialQuery ?? '';
-    _selectedCountries = widget.initialCountries;
+    _selectedBoardIds = widget.initialBoardIds;
     _scrollController.addListener(_onScroll);
 
     // Perform initial search
-    if (widget.initialQuery != null || widget.initialCountries != null) {
+    if (widget.initialQuery != null || widget.initialBoardIds != null) {
       _search(isInitialLoad: true);
     }
   }
@@ -86,7 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final result = await _searchService.search(
         keyword: _searchController.text.isEmpty ? null : _searchController.text,
-        countries: _selectedCountries,
+        boardIds: _selectedBoardIds,
         sortBy: _sortBy,
         dateFrom: _dateFrom,
         dateTo: _dateTo,
@@ -102,8 +104,9 @@ class _SearchScreenState extends State<SearchScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('Error searching posts: $e');
       setState(() {
-        _errorMessage = 'Failed to search posts: $e';
+        _errorMessage = 'Failed to search posts';
         _isLoading = false;
       });
     }
@@ -120,15 +123,15 @@ class _SearchScreenState extends State<SearchScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => SearchFilterBottomSheet(
-        selectedCountries: _selectedCountries,
+        selectedBoardIds: _selectedBoardIds,
         sortBy: _sortBy,
         dateFrom: _dateFrom,
         dateTo: _dateTo,
         minVotes: _minVotes,
         hasImage: _hasImage,
-        onApply: (countries, sortBy, dateFrom, dateTo, minVotes, hasImage) {
+        onApply: (boardIds, sortBy, dateFrom, dateTo, minVotes, hasImage) {
           setState(() {
-            _selectedCountries = countries;
+            _selectedBoardIds = boardIds;
             _sortBy = sortBy;
             _dateFrom = dateFrom;
             _dateTo = dateTo;
@@ -143,7 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   int _getActiveFilterCount() {
     int count = 0;
-    if (_selectedCountries != null && _selectedCountries!.isNotEmpty) count++;
+    if (_selectedBoardIds != null && _selectedBoardIds!.isNotEmpty) count++;
     if (_sortBy != SortType.hot) count++;
     if (_dateFrom != null || _dateTo != null) count++;
     if (_minVotes != null) count++;
@@ -157,10 +160,11 @@ class _SearchScreenState extends State<SearchScreen> {
       // Refresh the search results
       await _search();
     } catch (e) {
-      print('Error voting: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('투표에 실패했습니다')),
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.voteFailed(context),
         );
       }
     }
@@ -176,7 +180,7 @@ class _SearchScreenState extends State<SearchScreen> {
           controller: _searchController,
           autofocus: widget.initialQuery == null,
           decoration: InputDecoration(
-            hintText: '게시물 검색...',
+            hintText: 'Search posts...',
             border: InputBorder.none,
             hintStyle: TextStyle(color: Colors.grey[400]),
           ),
@@ -186,13 +190,13 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: const Icon(Icons.search),
             onPressed: () => _search(isInitialLoad: true),
           ),
           Stack(
             children: [
               IconButton(
-                icon: Icon(Icons.filter_list),
+                icon: const Icon(Icons.filter_list),
                 onPressed: _openFilterSheet,
               ),
               if (filterCount > 0)
@@ -200,18 +204,18 @@ class _SearchScreenState extends State<SearchScreen> {
                   right: 8,
                   top: 8,
                   child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    constraints: BoxConstraints(
+                    constraints: const BoxConstraints(
                       minWidth: 16,
                       minHeight: 16,
                     ),
                     child: Text(
                       '$filterCount',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -234,13 +238,13 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(_errorMessage!, style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 16),
+            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(_errorMessage!, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _search(isInitialLoad: true),
-              child: Text('Retry'),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -252,13 +256,13 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
             Text(
               _searchController.text.isEmpty
-                  ? '검색어를 입력하세요'
-                  : '검색 결과가 없습니다',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ? 'Enter a search term'
+                  : 'No results found',
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
           ],
         ),
@@ -272,7 +276,7 @@ class _SearchScreenState extends State<SearchScreen> {
         itemCount: _posts.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == _posts.length) {
-            return Center(
+            return const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: CircularProgressIndicator(),

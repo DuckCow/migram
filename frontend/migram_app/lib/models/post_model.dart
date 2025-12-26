@@ -5,7 +5,8 @@ class Post {
   final String title;
   final String content;
   final String? imageUrl;
-  final String country;
+  final int boardId;
+  final String boardName;
   final bool isAnonymous;
   final UserModel? user;  // Null when post is anonymous
   final DateTime createdAt;
@@ -22,7 +23,8 @@ class Post {
     required this.title,
     required this.content,
     this.imageUrl,
-    required this.country,
+    required this.boardId,
+    required this.boardName,
     required this.isAnonymous,
     this.user,
     required this.createdAt,
@@ -41,7 +43,8 @@ class Post {
       title: json['title'] as String,
       content: json['content'] as String,
       imageUrl: json['imageUrl'] as String?,
-      country: json['country'] as String,
+      boardId: json['boardId'] as int,
+      boardName: json['boardName'] as String,
       isAnonymous: json['isAnonymous'] as bool? ?? false,
       user: json['userDTO'] != null
           ? UserModel.fromJson(json['userDTO'] as Map<String, dynamic>)
@@ -63,7 +66,8 @@ class Post {
       'title': title,
       'content': content,
       'imageUrl': imageUrl,
-      'country': country,
+      'boardId': boardId,
+      'boardName': boardName,
       'isAnonymous': isAnonymous,
       'userDTO': user?.toJson(),
       'createdAt': createdAt.toIso8601String(),
@@ -75,33 +79,5 @@ class Post {
       'commentCount': commentCount,
       'hotScore': hotScore,
     };
-  }
-
-  // Get country flag emoji from country code
-  String getCountryFlag() {
-    const Map<String, String> countryFlags = {
-      'JP': '🇯🇵',
-      'CA': '🇨🇦',
-      'KR': '🇰🇷',
-      'US': '🇺🇸',
-      'GB': '🇬🇧',
-      'FR': '🇫🇷',
-      'DE': '🇩🇪',
-      'IT': '🇮🇹',
-      'ES': '🇪🇸',
-      'AU': '🇦🇺',
-      'NZ': '🇳🇿',
-      'CN': '🇨🇳',
-      'TW': '🇹🇼',
-      'HK': '🇭🇰',
-      'SG': '🇸🇬',
-      'IN': '🇮🇳',
-      'TH': '🇹🇭',
-      'VN': '🇻🇳',
-      'PH': '🇵🇭',
-      'MY': '🇲🇾',
-      'ID': '🇮🇩',
-    };
-    return countryFlags[country] ?? '🌍';
   }
 }

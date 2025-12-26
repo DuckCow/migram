@@ -5,12 +5,12 @@ import '../screens/search_screen.dart';
 /// This is a fake search bar that doesn't accept input directly
 class SearchBarWidget extends StatelessWidget {
   final String? initialQuery;
-  final List<String>? initialCountries;
+  final List<int>? initialBoardIds;
 
   const SearchBarWidget({
     super.key,
     this.initialQuery,
-    this.initialCountries,
+    this.initialBoardIds,
   });
 
   @override
@@ -22,7 +22,7 @@ class SearchBarWidget extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => SearchScreen(
               initialQuery: initialQuery,
-              initialCountries: initialCountries,
+              initialBoardIds: initialBoardIds,
             ),
           ),
         );
