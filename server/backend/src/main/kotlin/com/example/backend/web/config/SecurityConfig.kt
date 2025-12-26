@@ -119,7 +119,11 @@ class SecurityConfig {
                         AntPathRequestMatcher("/posts/feed", "GET"), // Feed는 읽기 전용이므로 인증 불필요
                         AntPathRequestMatcher("/posts/*", "GET"), // 게시글 읽기는 인증 불필요
                         AntPathRequestMatcher("/posts/*/comments", "GET"), // 댓글 읽기는 인증 불필요
-                        AntPathRequestMatcher("/comments/*", "GET") // 댓글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/comments/*", "GET"), // 댓글 읽기는 인증 불필요
+                        AntPathRequestMatcher("/boards", "GET"), // Boards 목록 읽기는 public
+                        AntPathRequestMatcher("/boards/*", "GET"), // Board 상세 읽기는 public
+                        AntPathRequestMatcher("/boards/type/*", "GET"), // Board type별 읽기는 public
+                        AntPathRequestMatcher("/boards/context/*", "GET") // Board context별 읽기는 public
                     ).permitAll()
                     .requestMatchers(
                         AntPathRequestMatcher("/auth/profile"), // 프로필 확인은 인증 필요

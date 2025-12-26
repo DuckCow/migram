@@ -12,6 +12,9 @@ data class Comment(
     val id: Long = 0,
     val content: String,
 
+    @Column(name = "original_lang", nullable = false, length = 10)
+    val originalLang: String = "en",
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id")
     val post: com.example.backend.web.model.Post,
@@ -24,6 +27,14 @@ data class Comment(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
     val parentComment: Comment? = null,
+
+    // Username of user being replied to (preserved even when parent is deleted)
+    @Column(name = "reply_to_username", length = 100)
+    val replyToUsername: String? = null,
+
+    // User ID being replied to (preserved even when parent is deleted, for clickable @mentions)
+    @Column(name = "reply_to_user_id")
+    val replyToUserId: Long? = null,
 
     // Soft delete flag
     @Column(name = "is_deleted", nullable = false)
@@ -42,12 +53,14 @@ data class Comment(
 data class CommentRequestDTO(
     val content: String,
     val postId: Long,
-    val parentCommentId: Long? = null  // 대댓글인 경우 부모 댓글 ID
+    val parentCommentId: Long? = null,  // 대댓글인 경우 부모 댓글 ID
+    val originalLang: String = "en"
 )
 
 data class CommentResponseDTO(
     val id: Long,
     val content: String,
+    val originalLang: String,
     val postId: Long,
     val userDTO: com.example.backend.web.model.UserDTO,
     val upvotes: Long,
@@ -58,6 +71,8 @@ data class CommentResponseDTO(
     val createdBy: String,
     val modifiedAt: String,
     val parentCommentId: Long? = null,  // 부모 댓글 ID
+    val replyToUsername: String? = null,  // Username being replied to (preserved on delete)
+    val replyToUserId: Long? = null,  // User ID being replied to (for clickable @mentions)
     val replies: List<CommentResponseDTO> = emptyList(),  // 대댓글 목록
     val replyCount: Int = 0,  // 대댓글 개수
     val isDeleted: Boolean = false  // Soft delete flag

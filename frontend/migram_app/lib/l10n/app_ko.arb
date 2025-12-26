@@ -87,5 +87,11 @@
 
   "confirmLogout": "로그아웃 하시겠습니까?",
   "confirmDeletePost": "정말로 이 게시글을 삭제하시겠습니까?",
-  "postNotFound": "게시글을 찾을 수 없습니다"
+  "postNotFound": "게시글을 찾을 수 없습니다",
+
+  "seeTranslation": "번역 보기",
+  "hideTranslation": "번역 숨기기",
+  "translating": "번역 중...",
+  "translationFailed": "번역에 실패했습니다. 다시 시도해주세요.",
+  "errorTranslate": "번역에 실패했습니다. 다시 시도해주세요."
 }

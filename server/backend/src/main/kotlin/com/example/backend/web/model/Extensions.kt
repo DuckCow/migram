@@ -22,8 +22,10 @@ fun Post.toResponseDTO(
         title = this.title,
         content = this.content,
         imageUrl = this.mediaUrl,
-        country = this.country,
+        boardId = this.board.id,
+        boardName = this.board.name,
         isAnonymous = this.isAnonymous,
+        originalLang = this.originalLang,
         userDTO = if (this.isAnonymous) null else this.user.toDTO(),
         upvotes = upvotes,
         downvotes = downvotes,
@@ -40,8 +42,7 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
     voteRepository: VoteRepository,
     currentUserId: Long?,
     userRepository: UserRepository,
-    includeReplies: Boolean = true,  // 대댓글 포함 여부
-    maxDepth: Int = 10  // 최대 중첩 깊이 (무한 재귀 방지)
+    includeReplies: Boolean = true  // Only include direct replies (depth=1)
 ): com.example.backend.web.model.CommentResponseDTO {
     val upvotes = voteRepository.countByCommentAndVoteType(this, VoteType.UP)
     val downvotes = voteRepository.countByCommentAndVoteType(this, VoteType.DOWN)
@@ -51,13 +52,16 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
         user?.let { voteRepository.findByUserAndComment(it, this)?.voteType }
     } else null
 
-    // 대댓글 변환 (재귀적으로 모든 깊이 처리)
-    // Include all replies, even deleted ones (they will show "This comment was deleted.")
-    val repliesDTO = if (includeReplies && maxDepth > 0) {
+    // ENFORCE DEPTH = 1: Only include direct replies if this is a top-level comment
+    // If this is already a reply (has parentComment), never include nested replies
+    val isTopLevel = this.parentComment == null
+    val repliesDTO = if (includeReplies && isTopLevel) {
+        // Only process direct children, and never recursively include THEIR replies
         this.replies
-            .filter { it.parentComment?.id == this.id }  // 이 댓글의 직접 자식만
+            .filter { it.parentComment?.id == this.id }
             .map { reply ->
-                reply.toResponseDTO(voteRepository, currentUserId, userRepository, includeReplies = true, maxDepth = maxDepth - 1)
+                // Critical: Pass includeReplies = false to prevent recursive nesting
+                reply.toResponseDTO(voteRepository, currentUserId, userRepository, includeReplies = false)
             }
     } else emptyList()
 
@@ -71,6 +75,7 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
     return com.example.backend.web.model.CommentResponseDTO(
         id = this.id,
         content = displayContent,
+        originalLang = this.originalLang,
         postId = this.post.id,
         userDTO = this.user.toDTO(),
         upvotes = upvotes,
@@ -81,6 +86,8 @@ fun com.example.backend.web.model.Comment.toResponseDTO(
         createdBy = this.createdBy ?: "",
         modifiedAt = (this.modifiedAt ?: LocalDateTime.now()).toString(),
         parentCommentId = this.parentComment?.id,
+        replyToUsername = this.replyToUsername,  // Preserved even when parent is deleted
+        replyToUserId = this.replyToUserId,  // Preserved for clickable @mentions
         replies = repliesDTO,
         replyCount = this.replies.size,  // Count all replies including deleted ones
         isDeleted = this.isDeleted

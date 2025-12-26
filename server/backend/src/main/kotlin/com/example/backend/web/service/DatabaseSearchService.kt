@@ -1,6 +1,7 @@
 package com.example.backend.web.service
 
 import com.example.backend.web.model.*
+import com.example.backend.web.repository.BoardRepository
 import com.example.backend.web.repository.CommentRepository
 import com.example.backend.web.repository.PostRepository
 import com.example.backend.web.repository.UserRepository
@@ -21,6 +22,7 @@ import java.time.format.DateTimeFormatter
 @Transactional(readOnly = true)
 class DatabaseSearchService(
     private val postRepository: PostRepository,
+    private val boardRepository: BoardRepository,
     private val voteRepository: VoteRepository,
     private val commentRepository: CommentRepository,
     private val userRepository: UserRepository,
@@ -36,23 +38,29 @@ class DatabaseSearchService(
             null
         }
 
-        // Step 1: Fetch posts based on keyword and countries
+        // Step 1: Fetch posts based on keyword and boards
         var posts = when {
-            // Keyword + Countries
-            !query.keyword.isNullOrBlank() && !query.countries.isNullOrEmpty() -> {
-                postRepository.searchByKeywordAndCountries(query.keyword, query.countries)
+            // Keyword + Boards
+            !query.keyword.isNullOrBlank() && !query.boardIds.isNullOrEmpty() -> {
+                val boards = query.boardIds.mapNotNull {
+                    boardRepository.findById(it).orElse(null)
+                }
+                postRepository.searchByKeywordAndBoards(query.keyword, boards, Pageable.unpaged()).content
             }
             // Keyword only
             !query.keyword.isNullOrBlank() -> {
-                postRepository.searchByKeyword(query.keyword)
+                postRepository.searchByKeyword(query.keyword, Pageable.unpaged()).content
             }
-            // Countries only
-            !query.countries.isNullOrEmpty() -> {
-                postRepository.searchByCountries(query.countries)
+            // Boards only
+            !query.boardIds.isNullOrEmpty() -> {
+                val boards = query.boardIds.mapNotNull {
+                    boardRepository.findById(it).orElse(null)
+                }
+                postRepository.searchByBoards(boards, Pageable.unpaged()).content
             }
             // No filters - return all posts
             else -> {
-                postRepository.findAll()
+                postRepository.findAll().toList()
             }
         }
 
@@ -94,7 +102,7 @@ class DatabaseSearchService(
         // Step 8: Build result
         val hasMore = end < postDTOs.size
         val filters = SearchFilters(
-            countries = query.countries,
+            boardIds = query.boardIds,
             sortBy = query.sortBy,
             dateRange = formatDateRange(query.dateFrom, query.dateTo),
             minVotes = query.minVotes,

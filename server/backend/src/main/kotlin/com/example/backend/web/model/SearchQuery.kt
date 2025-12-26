@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable
 data class SearchQuery(
     // Phase 1: Basic search
     val keyword: String? = null,           // Search term for title/content
-    val countries: List<Country>? = null,  // Filter by countries
+    val boardIds: List<Long>? = null,      // Filter by boards
     val sortBy: SortType = SortType.HOT,   // Default to Hot algorithm
 
     // Phase 1: Date filtering (optional)
@@ -32,7 +32,7 @@ data class SearchQuery(
 ) {
     fun hasFilters(): Boolean {
         return keyword != null ||
-               !countries.isNullOrEmpty() ||
+               !boardIds.isNullOrEmpty() ||
                dateFrom != null ||
                dateTo != null ||
                minVotes != null ||
@@ -68,7 +68,7 @@ data class SearchResult(
  * Applied filters information
  */
 data class SearchFilters(
-    val countries: List<Country>?,
+    val boardIds: List<Long>?,
     val sortBy: SortType,
     val dateRange: String?,
     val minVotes: Int?,
