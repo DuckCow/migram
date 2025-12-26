@@ -6,6 +6,7 @@ import '../models/comment_model.dart';
 import '../services/post_service.dart';
 import '../services/comment_service.dart';
 import '../services/user_service.dart';
+import '../services/translation_service.dart';
 import '../widgets/vote_button.dart';
 import '../widgets/comment_card.dart';
 import '../utils/error_handler.dart';
@@ -28,6 +29,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final PostService _postService = PostService();
   final CommentService _commentService = CommentService();
   final UserService _userService = UserService();
+  final TranslationService _translationService = TranslationService();
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
 
@@ -37,6 +39,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isSubmitting = false;
   Comment? _replyingTo; // Track which comment is being replied to
   int? _currentUserId; // Current logged-in user ID
+
+  // Translation state (REPLACE mode)
+  bool _showPostTranslation = false;
+  bool _isTranslatingPost = false;
+  String? _translatedPostText;
 
   @override
   void initState() {
@@ -225,6 +232,59 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return _currentUserId != null && _post != null && !_post!.isAnonymous && _currentUserId == _post!.user?.id;
   }
 
+  Future<void> _togglePostTranslation() async {
+    if (_showPostTranslation) {
+      // Hide translation - switch back to original
+      setState(() {
+        _showPostTranslation = false;
+      });
+      return;
+    }
+
+    // Show translation
+    if (_translatedPostText != null) {
+      // Already have cached translation, just show it
+      setState(() {
+        _showPostTranslation = true;
+      });
+      return;
+    }
+
+    // Need to fetch translation
+    setState(() {
+      _isTranslatingPost = true;
+    });
+
+    try {
+      final locale = Localizations.localeOf(context).languageCode;
+
+      final response = await _translationService.getTranslation(
+        contentType: 'POST',
+        contentId: widget.postId,
+        targetLang: locale,
+      );
+
+      if (mounted) {
+        setState(() {
+          _translatedPostText = response.translatedText;
+          _showPostTranslation = true;
+          _isTranslatingPost = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTranslatingPost = false;
+        });
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: AppLocalizations.of(context)!.errorTranslate,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -395,11 +455,42 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Content
+          // Content - REPLACE mode (show original OR translated)
           Text(
-            _post!.content,
+            _showPostTranslation && _translatedPostText != null
+                ? _translatedPostText!
+                : _post!.content,
             style: const TextStyle(fontSize: 16),
           ),
+          // Translation toggle button (only if language differs)
+          if (_post!.originalLang != Localizations.localeOf(context).languageCode) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _isTranslatingPost ? null : _togglePostTranslation,
+              icon: _isTranslatingPost
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _showPostTranslation ? Icons.translate_outlined : Icons.translate,
+                      size: 18,
+                    ),
+              label: Text(
+                _isTranslatingPost
+                    ? AppLocalizations.of(context)!.translating
+                    : (_showPostTranslation
+                        ? AppLocalizations.of(context)!.hideTranslation
+                        : AppLocalizations.of(context)!.seeTranslation),
+                style: const TextStyle(fontSize: 14),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: const Size(0, 32),
+              ),
+            ),
+          ],
           // Image (if exists)
           if (_post!.imageUrl != null) ...[
             const SizedBox(height: 16),

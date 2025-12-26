@@ -8,6 +8,7 @@ class Post {
   final int boardId;
   final String boardName;
   final bool isAnonymous;
+  final String originalLang;
   final UserModel? user;  // Null when post is anonymous
   final DateTime createdAt;
   final DateTime modifiedAt;
@@ -26,6 +27,7 @@ class Post {
     required this.boardId,
     required this.boardName,
     required this.isAnonymous,
+    required this.originalLang,
     this.user,
     required this.createdAt,
     required this.modifiedAt,
@@ -46,6 +48,7 @@ class Post {
       boardId: json['boardId'] as int,
       boardName: json['boardName'] as String,
       isAnonymous: json['isAnonymous'] as bool? ?? false,
+      originalLang: json['originalLang'] as String? ?? 'en',
       user: json['userDTO'] != null
           ? UserModel.fromJson(json['userDTO'] as Map<String, dynamic>)
           : null,
@@ -69,6 +72,7 @@ class Post {
       'boardId': boardId,
       'boardName': boardName,
       'isAnonymous': isAnonymous,
+      'originalLang': originalLang,
       'userDTO': user?.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'modifiedAt': modifiedAt.toIso8601String(),

@@ -4,9 +4,11 @@ import com.example.backend.web.model.CustomOAuth2User
 import com.example.backend.web.model.jwt.JwtTokenProvider
 import com.example.backend.web.repository.FollowRepository
 import com.example.backend.web.repository.UserRepository
+import com.example.backend.web.repository.ContentTranslationRepository
 import org.springframework.context.annotation.Profile
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -18,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController
 class DebugController(
     private val followRepository: FollowRepository,
     private val userRepository: UserRepository,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val contentTranslationRepository: ContentTranslationRepository
 ) {
 
     @GetMapping("/follows")
@@ -69,5 +72,15 @@ class DebugController(
 
         val token = jwtTokenProvider.generateAccessToken(authentication)
         return mapOf("token" to token, "userId" to userId.toString(), "email" to user.email)
+    }
+
+    @DeleteMapping("/clear-translation-cache")
+    fun clearTranslationCache(): Map<String, Any> {
+        val count = contentTranslationRepository.count()
+        contentTranslationRepository.deleteAll()
+        return mapOf(
+            "message" to "Translation cache cleared",
+            "deletedCount" to count
+        )
     }
 }
