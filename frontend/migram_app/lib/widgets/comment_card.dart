@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/comment_model.dart';
 import '../services/user_service.dart';
 import '../services/comment_service.dart';
+import '../services/translation_service.dart';
 import '../screens/user_profile_screen.dart';
+import '../utils/error_handler.dart';
 import 'vote_button.dart';
 import 'edit_comment_dialog.dart';
 
@@ -31,7 +34,13 @@ class CommentCard extends StatefulWidget {
 class _CommentCardState extends State<CommentCard> {
   final UserService _userService = UserService();
   final CommentService _commentService = CommentService();
+  final TranslationService _translationService = TranslationService();
   int? _currentUserId;
+
+  // Translation state
+  bool _showTranslation = false;
+  bool _isTranslating = false;
+  String? _translatedText;
 
   @override
   void initState() {
@@ -103,6 +112,60 @@ class _CommentCardState extends State<CommentCard> {
 
   bool _isCommentOwner() {
     return _currentUserId != null && _currentUserId == widget.comment.user.id;
+  }
+
+  Future<void> _toggleTranslation() async {
+    if (_showTranslation) {
+      // Hide translation
+      setState(() {
+        _showTranslation = false;
+      });
+      return;
+    }
+
+    // Show translation
+    if (_translatedText != null) {
+      // Already translated, just show it
+      setState(() {
+        _showTranslation = true;
+      });
+      return;
+    }
+
+    // Need to fetch translation
+    setState(() {
+      _isTranslating = true;
+    });
+
+    try {
+      // Get current locale for target language
+      final locale = Localizations.localeOf(context).languageCode;
+
+      final response = await _translationService.getTranslation(
+        contentType: 'COMMENT',
+        contentId: widget.comment.id,
+        targetLang: locale,
+      );
+
+      if (mounted) {
+        setState(() {
+          _translatedText = response.translatedText;
+          _showTranslation = true;
+          _isTranslating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTranslating = false;
+        });
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: AppLocalizations.of(context)!.errorTranslate,
+        );
+      }
+    }
   }
 
   @override
@@ -196,15 +259,48 @@ class _CommentCardState extends State<CommentCard> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Comment content (grayed out if deleted)
+                    // Comment content - REPLACE mode (show original OR translated)
                     Text(
-                      widget.comment.content,
+                      _showTranslation && _translatedText != null
+                          ? _translatedText!
+                          : widget.comment.content,
                       style: TextStyle(
-                        fontSize: isReply ? 13 : 14, // Slightly smaller for replies
+                        fontSize: isReply ? 13 : 14,
                         color: widget.comment.isDeleted ? Colors.grey[600] : Colors.black87,
                         fontStyle: widget.comment.isDeleted ? FontStyle.italic : FontStyle.normal,
                       ),
                     ),
+                    // Translation button (only show if language differs and not deleted)
+                    if (!widget.comment.isDeleted &&
+                        widget.comment.originalLang != Localizations.localeOf(context).languageCode) ...[
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: _isTranslating ? null : _toggleTranslation,
+                        icon: _isTranslating
+                            ? const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(
+                                _showTranslation ? Icons.translate_outlined : Icons.translate,
+                                size: 14,
+                              ),
+                        label: Text(
+                          _isTranslating
+                              ? AppLocalizations.of(context)!.translating
+                              : (_showTranslation
+                                  ? AppLocalizations.of(context)!.hideTranslation
+                                  : AppLocalizations.of(context)!.seeTranslation),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 20),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
                     SizedBox(height: isReply ? 6 : 8), // Less spacing for replies
                     // Action buttons row (lighter for replies)
                     Row(

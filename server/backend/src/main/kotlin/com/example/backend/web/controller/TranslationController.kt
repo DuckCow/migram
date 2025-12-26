@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/translations")
+@RequestMapping("/translations")
 class TranslationController(
     private val translationService: TranslationService
 ) {

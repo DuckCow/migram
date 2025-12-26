@@ -3,6 +3,7 @@ import 'user_model.dart';
 class Comment {
   final int id;
   final String content;
+  final String originalLang;
   final int postId; // Post ID for the comment
   final UserModel user;
   final DateTime createdAt;
@@ -21,6 +22,7 @@ class Comment {
   Comment({
     required this.id,
     required this.content,
+    required this.originalLang,
     required this.postId,
     required this.user,
     required this.createdAt,
@@ -41,6 +43,7 @@ class Comment {
     return Comment(
       id: json['id'] as int,
       content: json['content'] as String,
+      originalLang: json['originalLang'] as String? ?? 'en',
       postId: json['postId'] as int,
       user: UserModel.fromJson(json['userDTO'] as Map<String, dynamic>),
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -65,6 +68,7 @@ class Comment {
     return {
       'id': id,
       'content': content,
+      'originalLang': originalLang,
       'postId': postId,
       'user': user.toJson(),
       'createdAt': createdAt.toIso8601String(),

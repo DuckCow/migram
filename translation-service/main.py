@@ -21,9 +21,23 @@ async def translate(request: TranslationRequest):
     Dummy translation endpoint
     Returns fake translation for testing the end-to-end flow
     """
-    # Simple dummy translation: prefix text with target language
-    fake_translation = f"[{request.targetLang.upper()}] {request.text}"
-    
+    # Check if text contains title + content format (separated by \n\n)
+    if '\n\n' in request.text:
+        # Split into title and content
+        parts = request.text.split('\n\n', 1)
+        title = parts[0]
+        content = parts[1] if len(parts) > 1 else ''
+
+        # Translate both title and content
+        translated_title = f"[{request.targetLang.upper()}] {title}"
+        translated_content = f"[{request.targetLang.upper()}] {content}"
+
+        # Recombine
+        fake_translation = f"{translated_title}\n\n{translated_content}"
+    else:
+        # Simple text without title/content separation
+        fake_translation = f"[{request.targetLang.upper()}] {request.text}"
+
     return TranslationResponse(
         translatedText=fake_translation,
         model="dummy-v1.0"
