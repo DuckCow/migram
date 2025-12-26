@@ -17,6 +17,24 @@ interface CommentRepository : JpaRepository<com.example.backend.web.model.Commen
     fun countByUserId(userId: Long): Long
 }
 
+interface BoardRepository : JpaRepository<com.example.backend.web.model.Board, Long> {
+    // Find active boards only (for public listing)
+    fun findByStatus(status: com.example.backend.web.model.BoardStatus, pageable: Pageable): Page<com.example.backend.web.model.Board>
+
+    // Find boards by type and status
+    fun findByBoardTypeAndStatus(
+        boardType: com.example.backend.web.model.BoardType,
+        status: com.example.backend.web.model.BoardStatus,
+        pageable: Pageable
+    ): Page<com.example.backend.web.model.Board>
+
+    // Find board by context (e.g., country code)
+    fun findByContextAndStatus(
+        context: String,
+        status: com.example.backend.web.model.BoardStatus
+    ): com.example.backend.web.model.Board?
+}
+
 
 interface PostRepository : JpaRepository<Post, Long> {
 
@@ -25,17 +43,13 @@ interface PostRepository : JpaRepository<Post, Long> {
     // 사용자의 게시글 개수
     fun countByUserId(userId: Long): Long
 
-    // 기본적인 국가별 조회
-    fun findByCountry(country: Country): List<Post>
+    // Board-based queries (primary navigation)
+    fun findByBoard(board: com.example.backend.web.model.Board, pageable: Pageable): Page<Post>
 
-    // 페이징 처리를 포함한 국가별 조회
-    fun findByCountry(country: Country, pageable: Pageable): Page<Post>
+    fun countByBoard(board: com.example.backend.web.model.Board): Long
 
-    // 특정 국가들의 게시물 조회
-    fun findByCountryIn(countries: List<Country>): List<Post>
-
-    // 국가별 + 생성일자 정렬
-    fun findByCountryOrderByCreatedAtDesc(country: Country): List<Post>
+    // Multiple boards (for feed aggregation)
+    fun findByBoardIn(boards: List<com.example.backend.web.model.Board>, pageable: Pageable): Page<Post>
 
     // Search: Keyword in title or content
     @Query("""
@@ -43,20 +57,20 @@ interface PostRepository : JpaRepository<Post, Long> {
         WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
         OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
     """)
-    fun searchByKeyword(keyword: String): List<Post>
+    fun searchByKeyword(keyword: String, pageable: Pageable): Page<Post>
 
-    // Search: Keyword + Countries
+    // Search: Keyword + Boards
     @Query("""
         SELECT p FROM Post p
         WHERE (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
         OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
-        AND p.country IN :countries
+        AND p.board IN :boards
     """)
-    fun searchByKeywordAndCountries(keyword: String, countries: List<Country>): List<Post>
+    fun searchByKeywordAndBoards(keyword: String, boards: List<com.example.backend.web.model.Board>, pageable: Pageable): Page<Post>
 
-    // Search: Countries only
-    @Query("SELECT p FROM Post p WHERE p.country IN :countries")
-    fun searchByCountries(countries: List<Country>): List<Post>
+    // Search: Boards only
+    @Query("SELECT p FROM Post p WHERE p.board IN :boards")
+    fun searchByBoards(boards: List<com.example.backend.web.model.Board>, pageable: Pageable): Page<Post>
 
 }
 

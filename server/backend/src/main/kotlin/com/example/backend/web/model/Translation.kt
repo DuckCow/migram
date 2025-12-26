@@ -1,17 +1,41 @@
 package com.example.backend.web.model
 
-class Translation {
-}
-
-// 번역 요청을 위한 DTO
-data class TranslationRequest(
-    val text: String,
-    val targetLang: String? = null // 목표 언어가 지정되지 않은 경우 자동 감지
+/**
+ * Request DTO for translation
+ */
+data class TranslationRequestDTO(
+    val contentType: ContentType,
+    val contentId: Long,
+    val targetLang: String
 )
 
-data class TranslationResponse(
-    val originalText: String,
-    val detectedLanguage: String,
+/**
+ * Response DTO for translation
+ */
+data class TranslationResponseDTO(
+    val contentType: ContentType,
+    val contentId: Long,
+    val sourceLang: String,
+    val targetLang: String,
     val translatedText: String,
-    val targetLanguage: String
+    val model: String,
+    val cached: Boolean
+)
+
+/**
+ * Request to external translation service (FastAPI)
+ */
+data class ExternalTranslationRequest(
+    val text: String,
+    val sourceLang: String,
+    val targetLang: String,
+    val quality: String = "best"
+)
+
+/**
+ * Response from external translation service (FastAPI)
+ */
+data class ExternalTranslationResponse(
+    val translatedText: String,
+    val model: String
 )

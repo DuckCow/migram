@@ -27,25 +27,25 @@ class PostController(
     /**
      * Get feed with Hot algorithm sorting
      * Query params:
-     * - countries: comma-separated country codes (e.g., "JP,CA,KR")
+     * - boardIds: comma-separated board IDs (e.g., "1,2,3")
      * - page, size: pagination
      */
     @GetMapping("/feed")
     fun getFeed(
-        @RequestParam(required = false) countries: String?,
+        @RequestParam(required = false) boardIds: String?,
         @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable
     ): PageDTO<PostResponseDTO> {
-        val countryList = countries?.split(",")
-            ?.mapNotNull { code ->
+        val boardIdList = boardIds?.split(",")
+            ?.mapNotNull { id ->
                 try {
-                    Country.fromCode(code.trim())
+                    id.trim().toLong()
                 } catch (e: Exception) {
                     null
                 }
             }
 
-        return postService.getFeed(countryList, pageable)
+        return postService.getFeed(boardIdList, pageable)
     }
 
     @GetMapping
@@ -72,14 +72,14 @@ class PostController(
     fun createPostWithImage(
         @RequestPart("title") title: String,
         @RequestPart("content") content: String,
-        @RequestPart("country") countryCode: String,
+        @RequestPart("boardId") boardIdStr: String,
         @RequestPart(value = "isAnonymous", required = false) isAnonymousStr: String?,
         @RequestPart(value = "image", required = false) image: MultipartFile?
     ): ResponseEntity<PostResponseDTO> {
-        val country = try {
-            Country.fromCode(countryCode)
+        val boardId = try {
+            boardIdStr.toLong()
         } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid country code: $countryCode")
+            throw IllegalArgumentException("Invalid board ID: $boardIdStr")
         }
 
         val isAnonymous = isAnonymousStr?.toBoolean() ?: false
@@ -87,7 +87,7 @@ class PostController(
         val postRequestDTO = PostRequestDTO(
             title = title,
             content = content,
-            country = country,
+            boardId = boardId,
             imageUrl = null,  // Will be set by service after upload
             isAnonymous = isAnonymous
         )
@@ -115,23 +115,23 @@ class PostController(
         @PathVariable postId: Long,
         @RequestPart("title") title: String,
         @RequestPart("content") content: String,
-        @RequestPart("country") countryCode: String,
+        @RequestPart("boardId") boardIdStr: String,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
         @RequestPart(value = "keepExistingImage", required = false) keepExistingImageStr: String?
     ): PostResponseDTO {
         val keepExistingImage = keepExistingImageStr?.toBoolean() ?: true
         val userId = securityUtils.getCurrentUserId()
 
-        val country = try {
-            Country.fromCode(countryCode)
+        val boardId = try {
+            boardIdStr.toLong()
         } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid country code: $countryCode")
+            throw IllegalArgumentException("Invalid board ID: $boardIdStr")
         }
 
         val postRequestDTO = PostRequestDTO(
             title = title,
             content = content,
-            country = country,
+            boardId = boardId,
             imageUrl = null  // Will be handled by service
         )
 
@@ -175,12 +175,12 @@ class PostController(
         }
     }
 
-    @GetMapping("/country/{country}")
-    fun getPostsByCountry(
-        @PathVariable country: Country,
+    @GetMapping("/board/{boardId}")
+    fun getPostsByBoard(
+        @PathVariable boardId: Long,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int
     ): Page<Post> {
-        return postService.getPostsByCountryWithPaging(country, page, size)
+        return postService.getPostsByBoardWithPaging(boardId, page, size)
     }
 }

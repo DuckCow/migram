@@ -33,9 +33,10 @@ class CommentService(
         val post = postRepository.findById(postId)
             .orElseThrow { EntityNotFoundException("Post not found") }
 
-        // 최상위 댓글만 조회 (대댓글은 각 댓글의 replies에 포함됨)
+        // Return top-level comments with nested replies (Instagram-style)
+        // Each top-level comment includes its replies[] array
         return commentRepository.findByPostAndParentCommentIsNull(post, pageable).map {
-            it.toResponseDTO(voteRepository, currentUserId, userRepository)
+            it.toResponseDTO(voteRepository, currentUserId, userRepository, includeReplies = true)
         }
     }
 
@@ -63,12 +64,25 @@ class CommentService(
                 .orElseThrow { EntityNotFoundException("Parent comment not found") }
         }
 
+        // ENFORCE MAX DEPTH = 1 (Instagram-style)
+        // REJECT attempts to reply to a reply
+        if (parentComment?.parentComment != null) {
+            throw IllegalArgumentException("Cannot reply to a reply. Depth limit is 1 (Instagram-style). Please reply to the top-level comment instead.")
+        }
+
+        // Set replyToUsername and replyToUserId to preserve @mention
+        val replyToUsername = parentComment?.user?.nickname ?: parentComment?.user?.name
+        val replyToUserId = parentComment?.user?.id
+
         val comment = com.example.backend.web.model.Comment(
             id = 0,
             post = post,
             user = user,
             content = commentRequestDTO.content,
-            parentComment = parentComment
+            originalLang = commentRequestDTO.originalLang,
+            parentComment = parentComment,  // null for top-level, or a top-level comment only
+            replyToUsername = replyToUsername,
+            replyToUserId = replyToUserId
         )
 
         val saved = commentRepository.save(comment)
@@ -142,15 +156,8 @@ class CommentService(
 
         commentRepository.save(softDeletedComment)
 
-        // Unlink child comments: set their parentComment to null
-        // This preserves @mentions in child comment content
-        if (comment.replies.isNotEmpty()) {
-            comment.replies.forEach { reply ->
-                val unlinkedReply = reply.copy(
-                    parentComment = null
-                )
-                commentRepository.save(unlinkedReply)
-            }
-        }
+        // DO NOT unlink child comments - keep parentComment reference intact
+        // Child replies will continue to show under this (soft-deleted) parent
+        // @mentions are already preserved via replyToUsername and replyToUserId fields
     }
 }

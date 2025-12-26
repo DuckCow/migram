@@ -11,7 +11,7 @@ import java.time.LocalDateTime
 @Table(
     name = "post",
     indexes = [
-        Index(name = "idx_post_country", columnList = "country"),
+        Index(name = "idx_post_board", columnList = "board_id"),
         Index(name = "idx_post_title", columnList = "title"),
         Index(name = "idx_post_media_url", columnList = "mediaUrl")
     ]
@@ -24,11 +24,15 @@ data class Post(
     val content: String,
     val mediaUrl: String? = null,
 
-    @Enumerated(EnumType.STRING)
-    val country: Country,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", nullable = false)
+    val board: Board, // Post belongs to a Board (community/subreddit-like)
 
     @Column(nullable = false)
     val isAnonymous: Boolean = false,
+
+    @Column(name = "original_lang", nullable = false, length = 10)
+    val originalLang: String = "en",
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -46,8 +50,9 @@ data class PostRequestDTO(
     val title: String,
     val content: String,
     val imageUrl: String?,
-    val country: Country,  // Required: Country selection when creating post
-    val isAnonymous: Boolean = false
+    val boardId: Long,  // Required: Board selection when creating post
+    val isAnonymous: Boolean = false,
+    val originalLang: String = "en"
 )
 
 data class PostResponseDTO(
@@ -55,8 +60,10 @@ data class PostResponseDTO(
     val title: String,
     val content: String,
     val imageUrl: String?,
-    val country: Country,
+    val boardId: Long,
+    val boardName: String, // Board name for display
     val isAnonymous: Boolean,
+    val originalLang: String,
     val userDTO: UserDTO?,  // Null when post is anonymous
     val upvotes: Long,
     val downvotes: Long,

@@ -16,6 +16,7 @@ class DataLoader {
     fun loadTestData(
         userRepository: UserRepository,
         postRepository: PostRepository,
+        boardRepository: BoardRepository,
         commentRepository: CommentRepository,
         voteRepository: VoteRepository,
         followRepository: FollowRepository,
@@ -282,13 +283,23 @@ class DataLoader {
         userRepository.saveAll(listOf(user1, user2, user3, user4))
         println("Saved 4 test users (user4 has EVERYONE DM privacy)")
 
+        // Fetch boards for test posts
+        val japanBoard = boardRepository.findByContextAndStatus("JAPAN", BoardStatus.ACTIVE)
+            ?: throw IllegalStateException("Japan board not found")
+        val canadaBoard = boardRepository.findByContextAndStatus("CANADA", BoardStatus.ACTIVE)
+            ?: throw IllegalStateException("Canada board not found")
+        val koreaBoard = boardRepository.findByContextAndStatus("KOREA_SOUTH", BoardStatus.ACTIVE)
+            ?: throw IllegalStateException("Korea board not found")
+        val usBoard = boardRepository.findByContextAndStatus("UNITED_STATES", BoardStatus.ACTIVE)
+            ?: throw IllegalStateException("US board not found")
+
         // Create test posts
         val now = LocalDateTime.now()
         val post1 = Post(
             title = "Tokyo Life",
             content = "Life in Tokyo is amazing!",
             mediaUrl = null,
-            country = Country.JAPAN,
+            board = japanBoard,
             user = user1
         ).apply {
             createdAt = now.minusHours(2)
@@ -300,7 +311,7 @@ class DataLoader {
             title = "Vancouver Views",
             content = "Beautiful Vancouver scenery",
             mediaUrl = null,
-            country = Country.CANADA,
+            board = canadaBoard,
             user = user2
         ).apply {
             createdAt = now.minusHours(5)
@@ -312,7 +323,7 @@ class DataLoader {
             title = "Seoul Food",
             content = "Korean BBQ experience",
             mediaUrl = null,
-            country = Country.KOREA_SOUTH,
+            board = koreaBoard,
             user = user3
         ).apply {
             createdAt = now.minusHours(1)
@@ -324,7 +335,7 @@ class DataLoader {
             title = "Mount Fuji Trip",
             content = "Visited Mount Fuji yesterday",
             mediaUrl = null,
-            country = Country.JAPAN,
+            board = japanBoard,
             user = user1
         ).apply {
             createdAt = now.minusHours(10)
@@ -336,7 +347,7 @@ class DataLoader {
             title = "Ottawa Winter",
             content = "Cold but beautiful winter in Canada",
             mediaUrl = null,
-            country = Country.CANADA,
+            board = canadaBoard,
             user = user2
         ).apply {
             createdAt = now.minusDays(1)
@@ -348,7 +359,7 @@ class DataLoader {
             title = "Silicon Valley Tech",
             content = "Innovation happening every day in the Bay Area!",
             mediaUrl = null,
-            country = Country.UNITED_STATES,
+            board = usBoard,
             user = user4
         ).apply {
             createdAt = now.minusHours(6)

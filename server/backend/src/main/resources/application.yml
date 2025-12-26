@@ -74,6 +74,8 @@ cloud:
 
 
 translation:
+  base-url: ${TRANSLATION_SERVICE_URL:http://localhost:8001}
+  timeout-ms: 8000
   langid:
     url: "http://localhost:5001/detect"
   opusmt:

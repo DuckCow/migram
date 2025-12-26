@@ -2,6 +2,7 @@ package com.example.backend.web.service
 
 import com.example.backend.web.config.CacheConfig
 import com.example.backend.web.model.*
+import com.example.backend.web.repository.BoardRepository
 import com.example.backend.web.repository.PostRepository
 import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.repository.VoteRepository
@@ -22,6 +23,7 @@ import java.util.*
 @Transactional
 class PostService(
     private val postRepository: PostRepository,
+    private val boardRepository: BoardRepository,
     private val userRepository: UserRepository,
     private val voteRepository: VoteRepository,
     private val securityUtils: SecurityUtils,
@@ -31,26 +33,29 @@ class PostService(
 
     /**
      * Get feed with Hot algorithm sorting
-     * Optionally filter by multiple countries
+     * Optionally filter by multiple boards
      *
      * Caching disabled due to Redis serialization issues with complex DTOs
      */
     // @Cacheable(
     //     value = [CacheConfig.FEED_CACHE],
-    //     key = "(#countries != null ? #countries.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
+    //     key = "(#boardIds != null ? #boardIds.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
     // )
-    fun getFeed(countries: List<Country>?, pageable: Pageable): PageDTO<PostResponseDTO> {
+    fun getFeed(boardIds: List<Long>?, pageable: Pageable): PageDTO<PostResponseDTO> {
         val currentUserId = try {
             securityUtils.getCurrentUserId()
         } catch (e: Exception) {
             null  // Anonymous user
         }
 
-        // Get posts (filtered by countries if provided)
-        val posts = if (countries.isNullOrEmpty()) {
+        // Get posts (filtered by boards if provided)
+        val posts = if (boardIds.isNullOrEmpty()) {
             postRepository.findAll()
         } else {
-            postRepository.findByCountryIn(countries)
+            val boards = boardIds.mapNotNull {
+                boardRepository.findById(it).orElse(null)
+            }
+            postRepository.findByBoardIn(boards, Pageable.unpaged()).content
         }
 
         // Calculate hot scores
@@ -118,11 +123,14 @@ class PostService(
         val user = userRepository.findById(userId)
             .orElseThrow { EntityNotFoundException("User not found") }
 
+        val board = boardRepository.findById(postRequestDTO.boardId)
+            .orElseThrow { EntityNotFoundException("Board not found") }
+
         val post = Post(
             title = postRequestDTO.title,
             content = postRequestDTO.content,
             mediaUrl = postRequestDTO.imageUrl,
-            country = postRequestDTO.country,  // Country from request
+            board = board,  // Board from request
             isAnonymous = postRequestDTO.isAnonymous,
             user = user
         )
@@ -137,19 +145,23 @@ class PostService(
         val user = userRepository.findById(currentUserId)
             .orElseThrow { EntityNotFoundException("User not found") }
 
+        val board = boardRepository.findById(postRequestDTO.boardId)
+            .orElseThrow { EntityNotFoundException("Board not found") }
+
         var mediaUrl: String? = null
         if (file != null && !file.isEmpty) {
             val fileName = "${UUID.randomUUID()}-${file.originalFilename}"
             mediaUrl = fileStorageService.uploadFile(file, fileName)
         }
 
-        // Country now comes from request, not user profile
+        // Board now comes from request (boardId)
         val post = Post(
             title = postRequestDTO.title,
             content = postRequestDTO.content,
             mediaUrl = mediaUrl,
-            country = postRequestDTO.country,  // From request
+            board = board,  // From request
             isAnonymous = postRequestDTO.isAnonymous,
+            originalLang = postRequestDTO.originalLang,
             user = user
         )
 
@@ -195,11 +207,14 @@ class PostService(
             newMediaUrl = null
         }
 
+        val board = boardRepository.findById(updatedPostRequestDTO.boardId)
+            .orElseThrow { EntityNotFoundException("Board not found") }
+
         val updatedPost = existingPost.copy(
             title = updatedPostRequestDTO.title,
             content = updatedPostRequestDTO.content,
             mediaUrl = newMediaUrl,
-            country = updatedPostRequestDTO.country,
+            board = board,
             isAnonymous = updatedPostRequestDTO.isAnonymous
         )
 
@@ -225,16 +240,20 @@ class PostService(
         postRepository.delete(post)
     }
 
-    fun getPostsByCountry(country: Country): List<Post> {
-        return postRepository.findByCountry(country)
+    fun getPostsByBoard(boardId: Long): List<Post> {
+        val board = boardRepository.findById(boardId)
+            .orElseThrow { EntityNotFoundException("Board not found") }
+        return postRepository.findByBoard(board, Pageable.unpaged()).content
     }
 
-    fun getPostsByCountryWithPaging(
-        country: Country,
+    fun getPostsByBoardWithPaging(
+        boardId: Long,
         page: Int,
         size: Int
     ): Page<Post> {
+        val board = boardRepository.findById(boardId)
+            .orElseThrow { EntityNotFoundException("Board not found") }
         val pageable = PageRequest.of(page, size)
-        return postRepository.findByCountry(country, pageable)
+        return postRepository.findByBoard(board, pageable)
     }
 }
