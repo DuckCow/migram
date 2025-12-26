@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../models/post_model.dart';
 import '../services/post_service.dart';
 import '../services/token_service.dart';
+import '../utils/error_handler.dart';
 import '../widgets/post_card.dart';
-import '../widgets/country_filter_bottom_sheet.dart';
+import '../widgets/board_filter_bottom_sheet.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/notification_icon.dart';
 import 'post_detail_screen.dart';
@@ -23,7 +25,7 @@ class _FeedScreenState extends State<FeedScreen> {
   final ScrollController _scrollController = ScrollController();
 
   List<Post> _posts = [];
-  List<String>? _selectedCountries;
+  List<int>? _selectedBoardIds;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   int _currentPage = 0;
@@ -61,7 +63,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
     try {
       final posts = await _postService.getFeed(
-        countries: _selectedCountries,
+        boardIds: _selectedBoardIds,
         page: 0,
         size: _pageSize,
       );
@@ -72,13 +74,13 @@ class _FeedScreenState extends State<FeedScreen> {
         _hasMore = posts.length >= _pageSize;
       });
     } catch (e) {
-      print('Error loading feed: $e');
       setState(() {
         _isLoading = false;
       });
 
-      // 인증 실패 시 로그인 화면으로 이동
+      // Redirect to login on authentication failure
       if (e.toString().contains('302') || e.toString().contains('401') || e.toString().contains('403')) {
+        debugPrint('Authentication failed, redirecting to login: $e');
         await TokenService().clearTokens();
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
@@ -87,8 +89,10 @@ class _FeedScreenState extends State<FeedScreen> {
           );
         }
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('피드를 불러오는데 실패했습니다: $e')),
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.loadPostsFailed(context),
         );
       }
     }
@@ -103,7 +107,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
     try {
       final posts = await _postService.getFeed(
-        countries: _selectedCountries,
+        boardIds: _selectedBoardIds,
         page: _currentPage + 1,
         size: _pageSize,
       );
@@ -115,10 +119,11 @@ class _FeedScreenState extends State<FeedScreen> {
         _hasMore = posts.length >= _pageSize;
       });
     } catch (e) {
-      print('Error loading more: $e');
+      debugPrint('Error loading more posts: $e');
       setState(() {
         _isLoadingMore = false;
       });
+      // Silently fail for pagination - user can retry by scrolling
     }
   }
 
@@ -129,47 +134,49 @@ class _FeedScreenState extends State<FeedScreen> {
       // Refresh the specific post
       await _loadFeed();
     } catch (e) {
-      print('Error voting: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('투표에 실패했습니다')),
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.voteFailed(context),
         );
       }
     }
   }
 
-  void _showCountryFilter() async {
-    final result = await showModalBottomSheet<List<String>?>(
+  void _showBoardFilter() async {
+    final result = await showModalBottomSheet<List<int>?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CountryFilterBottomSheet(
-        initialSelectedCountries: _selectedCountries,
+      builder: (context) => BoardFilterBottomSheet(
+        initialSelectedBoardIds: _selectedBoardIds,
       ),
     );
 
-    if (result != null || result == null && _selectedCountries != null) {
+    if (result != null || result == null && _selectedBoardIds != null) {
       setState(() {
-        _selectedCountries = result;
+        _selectedBoardIds = result;
       });
       _loadFeed();
     }
   }
 
   Future<void> _handleLogout() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('로그아웃'),
-        content: const Text('로그아웃 하시겠습니까?'),
+        title: Text(l10n.logout),
+        content: Text(l10n.confirmLogout),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('로그아웃'),
+            child: Text(l10n.logout),
           ),
         ],
       ),
@@ -190,28 +197,28 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Migram'),
+        title: Text(AppLocalizations.of(context)!.appName),
         actions: [
-          // Country filter chip
+          // Board filter chip
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: GestureDetector(
-              onTap: _showCountryFilter,
+              onTap: _showBoardFilter,
               child: Chip(
-                avatar: const Text('🌍'),
+                avatar: const Icon(Icons.dashboard, size: 18),
                 label: Text(
-                  _selectedCountries == null || _selectedCountries!.isEmpty
-                      ? '전체'
-                      : '${_selectedCountries!.length}개 국가',
+                  _selectedBoardIds == null || _selectedBoardIds!.isEmpty
+                      ? AppLocalizations.of(context)!.all
+                      : AppLocalizations.of(context)!.applyBoards(_selectedBoardIds!.length),
                   style: const TextStyle(fontSize: 14),
                 ),
-                deleteIcon: _selectedCountries != null && _selectedCountries!.isNotEmpty
+                deleteIcon: _selectedBoardIds != null && _selectedBoardIds!.isNotEmpty
                     ? const Icon(Icons.close, size: 18)
                     : null,
-                onDeleted: _selectedCountries != null && _selectedCountries!.isNotEmpty
+                onDeleted: _selectedBoardIds != null && _selectedBoardIds!.isNotEmpty
                     ? () {
                         setState(() {
-                          _selectedCountries = null;
+                          _selectedBoardIds = null;
                         });
                         _loadFeed();
                       }
@@ -229,7 +236,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
             },
-            tooltip: '프로필',
+            tooltip: AppLocalizations.of(context)!.profile,
           ),
         ],
       ),
@@ -239,7 +246,7 @@ class _FeedScreenState extends State<FeedScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SearchBarWidget(
-              initialCountries: _selectedCountries,
+              initialBoardIds: _selectedBoardIds,
             ),
           ),
           // Feed content
@@ -249,11 +256,11 @@ class _FeedScreenState extends State<FeedScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _posts.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
-                            '게시글이 없습니다\n새로운 게시글을 작성해보세요!',
+                            AppLocalizations.of(context)!.noPostsYet,
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         )
                       : ListView.builder(

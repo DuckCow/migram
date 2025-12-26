@@ -8,9 +8,9 @@ class PostService {
   final DioService _dioService = DioService();
 
   /// Get feed with Hot algorithm sorting
-  /// Optionally filter by multiple countries (comma-separated)
+  /// Optionally filter by multiple boards (comma-separated IDs)
   Future<List<Post>> getFeed({
-    List<String>? countries,
+    List<int>? boardIds,
     int page = 0,
     int size = 20,
   }) async {
@@ -20,8 +20,8 @@ class PostService {
         'size': size,
       };
 
-      if (countries != null && countries.isNotEmpty) {
-        queryParams['countries'] = countries.join(',');
+      if (boardIds != null && boardIds.isNotEmpty) {
+        queryParams['boardIds'] = boardIds.join(',');
       }
 
       final response = await _dioService.get(
@@ -80,7 +80,7 @@ class PostService {
   Future<Post> createPost({
     required String title,
     required String content,
-    required String country,
+    required int boardId,
     String? imageUrl,
     bool isAnonymous = false,
   }) async {
@@ -88,7 +88,7 @@ class PostService {
       final requestData = {
         'title': title,
         'content': content,
-        'country': country,
+        'boardId': boardId,
         'imageUrl': imageUrl,
         'isAnonymous': isAnonymous,
       };
@@ -114,14 +114,14 @@ class PostService {
     required int postId,
     required String title,
     required String content,
-    required String country,
+    required int boardId,
     String? imageUrl,
   }) async {
     try {
       final requestData = {
         'title': title,
         'content': content,
-        'country': country,
+        'boardId': boardId,
         'imageUrl': imageUrl,
       };
 
@@ -156,7 +156,7 @@ class PostService {
   Future<Post> createPostWithImage({
     required String title,
     required String content,
-    required String country,
+    required int boardId,
     File? imageFile,
     bool isAnonymous = false,
   }) async {
@@ -164,8 +164,8 @@ class PostService {
       final formData = FormData.fromMap({
         'title': title,
         'content': content,
-        'country': country,
-        'isAnonymous': isAnonymous,
+        'boardId': boardId.toString(),
+        'isAnonymous': isAnonymous.toString(),
       });
 
       if (imageFile != null) {
@@ -206,7 +206,7 @@ class PostService {
     required int postId,
     required String title,
     required String content,
-    required String country,
+    required int boardId,
     File? imageFile,
     bool keepExistingImage = true,
   }) async {
@@ -214,7 +214,7 @@ class PostService {
       final formData = FormData.fromMap({
         'title': title,
         'content': content,
-        'country': country,
+        'boardId': boardId.toString(),
         'keepExistingImage': keepExistingImage.toString(),
       });
 

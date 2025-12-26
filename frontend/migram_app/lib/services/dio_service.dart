@@ -65,6 +65,8 @@ class DioService {
   }
 
   Future<Response> get(String path, {Options? options, Map<String, dynamic>? queryParameters}) async {
+    if (!_isInitialized) initialize();
+
     try {
       final response = await _dio.get(
         path,

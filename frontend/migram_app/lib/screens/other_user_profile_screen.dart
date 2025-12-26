@@ -119,7 +119,10 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     try {
       final posts = await _postService.getFeed(page: 0, size: 50);
       // Filter posts by this user
-      final userPosts = posts.where((post) => post.user.id == _user!.id).toList();
+      final userId = _user?.id;
+      final userPosts = userId != null
+          ? posts.where((post) => post.user?.id == userId).toList()
+          : <Post>[];
 
       setState(() {
         _userPosts = userPosts;
@@ -446,8 +449,8 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
               children: [
                 Expanded(
                   child: FollowButton(
-                    userId: _user!.id,
-                    onFollowStatusChanged: () {
+                    targetUserId: _user!.id,
+                    onStatusChanged: () {
                       _loadFollowStats();
                     },
                   ),

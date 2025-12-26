@@ -27,7 +27,7 @@ class PostCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Avatar, nickname, timestamp, country flag
+              // Header: Avatar, nickname, timestamp, board name
               Row(
                 children: [
                   // Avatar and Nickname (tappable if not anonymous)
@@ -99,10 +99,21 @@ class PostCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Country flag
-                  Text(
-                    post.getCountryFlag(),
-                    style: const TextStyle(fontSize: 20),
+                  // Board name
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      post.boardName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
                   ),
                 ],
               ),

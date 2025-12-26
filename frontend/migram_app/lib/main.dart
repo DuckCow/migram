@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:migram_app/screens/login_screen.dart';
 import 'package:migram_app/screens/main_screen.dart';
 import 'package:migram_app/services/dio_service.dart';
@@ -9,6 +10,7 @@ import 'package:migram_app/services/chat_service.dart';
 import 'package:app_links/app_links.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:async';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 Future<void> main() async {
   print('=== App starting ===');
@@ -188,6 +190,16 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Migram',
       navigatorKey: navigatorKey,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('ko', ''),
+      ],
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

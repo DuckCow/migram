@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/post_model.dart';
 import '../models/comment_model.dart';
@@ -7,6 +8,7 @@ import '../services/comment_service.dart';
 import '../services/user_service.dart';
 import '../widgets/vote_button.dart';
 import '../widgets/comment_card.dart';
+import '../utils/error_handler.dart';
 import 'edit_post_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -30,7 +32,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final FocusNode _commentFocusNode = FocusNode();
 
   Post? _post;
-  List<Comment> _comments = [];
+  List<Comment> _comments = []; // Top-level comments with nested replies[]
   bool _isLoading = true;
   bool _isSubmitting = false;
   Comment? _replyingTo; // Track which comment is being replied to
@@ -70,18 +72,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
       setState(() {
         _post = post;
-        _comments = comments;
+        _comments = comments; // Top-level comments with nested replies[]
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading post details: $e');
+      debugPrint('Error loading post details: $e');
       setState(() {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('게시글을 불러오는데 실패했습니다: $e')),
-        );
+        ErrorHandler.showError(context, e, userMessage: ErrorMessages.loadPostsFailed(context));
       }
     }
   }
@@ -93,11 +93,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       await _postService.votePost(_post!.id, voteType);
       await _loadPostAndComments();
     } catch (e) {
-      print('Error voting on post: $e');
+      debugPrint('Error voting on post: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('투표에 실패했습니다')),
-        );
+        ErrorHandler.showError(context, e, userMessage: ErrorMessages.voteFailed(context));
       }
     }
   }
@@ -107,11 +105,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       await _commentService.voteComment(commentId, voteType);
       await _loadPostAndComments();
     } catch (e) {
-      print('Error voting on comment: $e');
+      debugPrint('Error voting on comment: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('투표에 실패했습니다')),
-        );
+        ErrorHandler.showError(context, e, userMessage: ErrorMessages.voteFailed(context));
       }
     }
   }
@@ -142,7 +138,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       await _commentService.createComment(
         postId: widget.postId,
         content: _commentController.text.trim(),
-        parentCommentId: _replyingTo?.id, // Add parentCommentId if replying
+        parentCommentId: _replyingTo?.id,
       );
 
       _commentController.clear();
@@ -157,14 +153,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         _isSubmitting = false;
       });
     } catch (e) {
-      print('Error submitting comment: $e');
+      debugPrint('Error submitting comment: $e');
       setState(() {
         _isSubmitting = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('댓글 작성에 실패했습니다: $e')),
-        );
+        // Show user-friendly error for depth violation
+        String errorMessage = ErrorMessages.createCommentFailed(context);
+        if (e.toString().contains('Depth limit') || e.toString().contains('reply to a reply')) {
+          errorMessage = AppLocalizations.of(context)!.cannotReplyToReply;
+        }
+        ErrorHandler.showError(context, e, userMessage: errorMessage);
       }
     }
   }
@@ -186,20 +185,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _deletePost() async {
     if (_post == null) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: const Text('정말로 이 게시글을 삭제하시겠습니까?'),
+        title: Text(l10n.deletePost),
+        content: Text(l10n.confirmDeletePost),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -210,16 +210,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         await _postService.deletePost(_post!.id);
         if (mounted) {
           Navigator.of(context).pop(true); // Go back to feed
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('게시글이 삭제되었습니다')),
-          );
+          ErrorHandler.showSuccess(context, SuccessMessages.postDeleted(context));
         }
       } catch (e) {
-        print('Error deleting post: $e');
+        debugPrint('Error deleting post: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('게시글 삭제 실패: $e')),
-          );
+          ErrorHandler.showError(context, e, userMessage: ErrorMessages.deletePostFailed(context));
         }
       }
     }
@@ -233,18 +229,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('게시글'),
+        title: Text(AppLocalizations.of(context)!.post),
         actions: _isPostOwner()
             ? [
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: _editPost,
-                  tooltip: '수정',
+                  tooltip: AppLocalizations.of(context)!.edit,
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
                   onPressed: _deletePost,
-                  tooltip: '삭제',
+                  tooltip: AppLocalizations.of(context)!.delete,
                 ),
               ]
             : null,
@@ -252,7 +248,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _post == null
-              ? const Center(child: Text('게시글을 찾을 수 없습니다'))
+              ? Center(child: Text(AppLocalizations.of(context)!.postNotFound))
               : Column(
                   children: [
                     // Post content and comments list
@@ -266,19 +262,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: Text(
-                              '댓글 ${_comments.length}개',
+                              AppLocalizations.of(context)!.commentsCount(_comments.length),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
                           ),
-                          // Comments list
-                          ..._comments.map((comment) => CommentCard(
+                          // Comments list (Instagram-style: top-level with nested replies)
+                          ..._comments.map((comment) => _CommentGroupWidget(
+                                key: ValueKey(comment.id),
                                 comment: comment,
                                 onVote: _handleCommentVote,
                                 onReply: _startReplyingTo,
                                 onUpdate: _loadPostAndComments,
+                                currentUserId: _currentUserId,
                               )),
                         ],
                       ),
@@ -344,7 +342,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           children: [
                             Text(
                               _post!.isAnonymous
-                                  ? 'Anonymous'
+                                  ? AppLocalizations.of(context)!.anonymous
                                   : _post!.user!.displayName,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -368,11 +366,24 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ),
               ),
-              Text(
-                _post!.getCountryFlag(),
-                style: const TextStyle(fontSize: 24),
-              ),
             ],
+          ),
+          // Board name badge
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _post!.boardName,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           // Title
@@ -456,7 +467,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${_replyingTo!.user.displayName}님에게 답글',
+                        '${AppLocalizations.of(context)!.replyingTo} ${_replyingTo!.user.displayName}',
                         style: const TextStyle(
                           fontSize: 13,
                           color: Colors.blue,
@@ -483,8 +494,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     focusNode: _commentFocusNode,
                     decoration: InputDecoration(
                       hintText: _replyingTo != null
-                          ? '답글을 입력하세요...'
-                          : '댓글을 입력하세요...',
+                          ? AppLocalizations.of(context)!.writeReply
+                          : AppLocalizations.of(context)!.writeComment,
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -515,6 +526,117 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Instagram-style comment group widget: renders a parent comment + its replies
+class _CommentGroupWidget extends StatefulWidget {
+  final Comment comment; // Top-level comment with nested replies[]
+  final Function(int commentId, String voteType) onVote;
+  final Function(Comment)? onReply;
+  final Function()? onUpdate;
+  final int? currentUserId;
+
+  const _CommentGroupWidget({
+    super.key,
+    required this.comment,
+    required this.onVote,
+    this.onReply,
+    this.onUpdate,
+    this.currentUserId,
+  });
+
+  @override
+  State<_CommentGroupWidget> createState() => _CommentGroupWidgetState();
+}
+
+class _CommentGroupWidgetState extends State<_CommentGroupWidget> {
+  bool _repliesExpanded = true; // Show replies by default for better UX
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Parent comment (top-level)
+        CommentCard(
+          key: ValueKey('parent-${widget.comment.id}'),
+          comment: widget.comment,
+          onVote: widget.onVote,
+          onReply: widget.onReply,
+          onUpdate: widget.onUpdate,
+          isParentInGroup: true,
+        ),
+
+        // Instagram-style "View replies (N)" toggle row
+        if (widget.comment.replies.isNotEmpty)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _repliesExpanded = !_repliesExpanded;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 1,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _repliesExpanded
+                        ? AppLocalizations.of(context)!.hideReplies
+                        : AppLocalizations.of(context)!.viewReplies(widget.comment.replies.length),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // Replies list (indented, Instagram-style) with clear visual boundary
+        if (_repliesExpanded && widget.comment.replies.isNotEmpty) ...[
+          Container(
+            margin: const EdgeInsets.only(left: 28), // Indent for visual distinction
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: Colors.grey[300]!,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Column(
+              children: [
+                ...widget.comment.replies.map((reply) => CommentCard(
+                      key: ValueKey('reply-${reply.id}'),
+                      comment: reply,
+                      onVote: widget.onVote,
+                      onReply: null, // No reply button on replies (depth=1)
+                      onUpdate: widget.onUpdate,
+                      isParentInGroup: false, // Signal this is a reply
+                    )),
+              ],
+            ),
+          ),
+          // Divider AFTER the reply group to separate from next parent comment
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Colors.grey[400],
+            indent: 16,
+            endIndent: 16,
+          ),
+        ],
+      ],
     );
   }
 }

@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import '../models/board_model.dart';
 import '../services/post_service.dart';
+import '../services/board_service.dart';
+import '../utils/error_handler.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -15,37 +19,52 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final PostService _postService = PostService();
+  final BoardService _boardService = BoardService();
   final ImagePicker _imagePicker = ImagePicker();
 
-  String? _selectedCountry;
+  int? _selectedBoardId;
+  List<Board> _boards = [];
   File? _selectedImage;
   bool _isSubmitting = false;
   bool _isAnonymous = false;
+  bool _isLoadingBoards = true;
 
-  // 주요 국가 목록 (백엔드 Country enum의 code 값 사용)
-  final Map<String, String> _countries = {
-    'JP': '🇯🇵 일본',
-    'KR': '🇰🇷 한국',
-    'CA': '🇨🇦 캐나다',
-    'US': '🇺🇸 미국',
-    'GB': '🇬🇧 영국',
-    'FR': '🇫🇷 프랑스',
-    'DE': '🇩🇪 독일',
-    'IT': '🇮🇹 이탈리아',
-    'ES': '🇪🇸 스페인',
-    'AU': '🇦🇺 호주',
-    'CN': '🇨🇳 중국',
-    'TW': '🇹🇼 대만',
-    'HK': '🇭🇰 홍콩',
-    'SG': '🇸🇬 싱가포르',
-    'TH': '🇹🇭 태국',
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadBoards();
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBoards() async {
+    setState(() {
+      _isLoadingBoards = true;
+    });
+
+    try {
+      final boards = await _boardService.getAllBoards();
+      setState(() {
+        _boards = boards;
+        _isLoadingBoards = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingBoards = false;
+      });
+      if (mounted) {
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.loadBoardsFailed(context),
+        );
+      }
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -63,16 +82,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      print('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이미지 선택 실패: $e')),
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: AppLocalizations.of(context)!.errorPickImage,
         );
       }
     }
   }
 
   void _showImageSourceDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -80,7 +101,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('갤러리에서 선택'),
+              title: Text(l10n.chooseFromGallery),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.gallery);
@@ -88,7 +109,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('카메라로 촬영'),
+              title: Text(l10n.takePhoto),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.camera);
@@ -111,10 +132,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
-    if (_selectedCountry == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('국가를 선택해주세요')),
-      );
+    if (_selectedBoardId == null) {
+      ErrorHandler.showInfo(context, AppLocalizations.of(context)!.pleaseSelectBoard);
       return;
     }
 
@@ -128,7 +147,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         await _postService.createPostWithImage(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          country: _selectedCountry!,
+          boardId: _selectedBoardId!,
           imageFile: _selectedImage,
           isAnonymous: _isAnonymous,
         );
@@ -136,22 +155,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         await _postService.createPost(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          country: _selectedCountry!,
+          boardId: _selectedBoardId!,
           isAnonymous: _isAnonymous,
         );
       }
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('게시글이 작성되었습니다')),
-        );
+        ErrorHandler.showSuccess(context, SuccessMessages.postCreated(context));
       }
     } catch (e) {
-      print('Error creating post: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('게시글 작성 실패: $e')),
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.createPostFailed(context),
         );
       }
     } finally {
@@ -167,7 +185,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('새 게시글'),
+        title: Text(AppLocalizations.of(context)!.createPost),
         actions: [
           if (_isSubmitting)
             const Center(
@@ -183,61 +201,72 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           else
             TextButton(
               onPressed: _submitPost,
-              child: const Text(
-                '완료',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                AppLocalizations.of(context)!.post,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
         ],
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Country dropdown
-            DropdownButtonFormField<String>(
-              value: _selectedCountry,
-              decoration: const InputDecoration(
-                labelText: '국가 *',
-                border: OutlineInputBorder(),
-                hintText: '국가를 선택하세요',
-              ),
-              items: _countries.entries.map((entry) {
-                return DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCountry = value;
-                });
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '국가를 선택해주세요';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+        child: _isLoadingBoards
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Board dropdown
+                  DropdownButtonFormField<int>(
+                    value: _selectedBoardId,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.boardRequired,
+                      border: const OutlineInputBorder(),
+                      hintText: AppLocalizations.of(context)!.selectBoard,
+                    ),
+                    items: _boards.map((board) {
+                      final flag = board.getCountryFlag();
+                      return DropdownMenuItem(
+                        value: board.id,
+                        child: Row(
+                          children: [
+                            if (flag != null) ...[
+                              Text(flag),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(board.name),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedBoardId = value;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return AppLocalizations.of(context)!.pleaseSelectBoard;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
             // Title input
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: '제목 *',
-                border: OutlineInputBorder(),
-                hintText: '게시글 제목을 입력하세요',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.titleLabel,
+                border: const OutlineInputBorder(),
+                hintText: AppLocalizations.of(context)!.titleHint,
               ),
               maxLength: 100,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return '제목을 입력해주세요';
+                  return AppLocalizations.of(context)!.titleValidation;
                 }
                 if (value.trim().length < 2) {
-                  return '제목은 최소 2자 이상이어야 합니다';
+                  return AppLocalizations.of(context)!.titleMinLength;
                 }
                 return null;
               },
@@ -247,20 +276,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             // Content input
             TextFormField(
               controller: _contentController,
-              decoration: const InputDecoration(
-                labelText: '내용 *',
-                border: OutlineInputBorder(),
-                hintText: '게시글 내용을 입력하세요',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.contentLabel,
+                border: const OutlineInputBorder(),
+                hintText: AppLocalizations.of(context)!.contentHint,
                 alignLabelWithHint: true,
               ),
               maxLines: 10,
               maxLength: 5000,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return '내용을 입력해주세요';
+                  return AppLocalizations.of(context)!.contentValidation;
                 }
                 if (value.trim().length < 5) {
-                  return '내용은 최소 5자 이상이어야 합니다';
+                  return AppLocalizations.of(context)!.contentMinLength;
                 }
                 return null;
               },
@@ -309,7 +338,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               OutlinedButton.icon(
                 onPressed: _showImageSourceDialog,
                 icon: const Icon(Icons.add_photo_alternate),
-                label: const Text('이미지 추가 (선택)'),
+                label: Text(AppLocalizations.of(context)!.addImageOptional),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -325,23 +354,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   _isAnonymous = value ?? false;
                 });
               },
-              title: const Text('익명으로 게시'),
-              subtitle: const Text('작성자 정보가 표시되지 않습니다'),
+              title: Text(AppLocalizations.of(context)!.postAnonymously),
+              subtitle: Text(AppLocalizations.of(context)!.anonymousPostInfo),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 8),
 
-            // Helper text
-            const Text(
-              '* 필수 항목입니다',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
+                  // Helper text
+                  Text(
+                    AppLocalizations.of(context)!.requiredFields,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

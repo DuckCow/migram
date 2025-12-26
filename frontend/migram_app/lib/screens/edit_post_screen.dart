@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/post_model.dart';
+import '../models/board_model.dart';
 import '../services/post_service.dart';
+import '../services/board_service.dart';
+import '../utils/error_handler.dart';
 
 class EditPostScreen extends StatefulWidget {
   final Post post;
@@ -21,31 +25,15 @@ class _EditPostScreenState extends State<EditPostScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
   final PostService _postService = PostService();
+  final BoardService _boardService = BoardService();
   final ImagePicker _imagePicker = ImagePicker();
 
-  late String _selectedCountry;
+  late int _selectedBoardId;
+  List<Board> _boards = [];
   File? _newImage; // New image selected by user
   bool _keepExistingImage = true; // Keep existing image or remove it
   bool _isSubmitting = false;
-
-  // 주요 국가 목록 (백엔드 Country enum의 code 값 사용)
-  final Map<String, String> _countries = {
-    'JP': '🇯🇵 일본',
-    'KR': '🇰🇷 한국',
-    'CA': '🇨🇦 캐나다',
-    'US': '🇺🇸 미국',
-    'GB': '🇬🇧 영국',
-    'FR': '🇫🇷 프랑스',
-    'DE': '🇩🇪 독일',
-    'IT': '🇮🇹 이탈리아',
-    'ES': '🇪🇸 스페인',
-    'AU': '🇦🇺 호주',
-    'CN': '🇨🇳 중국',
-    'TW': '🇹🇼 대만',
-    'HK': '🇭🇰 홍콩',
-    'SG': '🇸🇬 싱가포르',
-    'TH': '🇹🇭 태국',
-  };
+  bool _isLoadingBoards = true;
 
   @override
   void initState() {
@@ -53,7 +41,30 @@ class _EditPostScreenState extends State<EditPostScreen> {
     // Pre-fill with existing post data
     _titleController = TextEditingController(text: widget.post.title);
     _contentController = TextEditingController(text: widget.post.content);
-    _selectedCountry = widget.post.country;
+    _selectedBoardId = widget.post.boardId;
+    _loadBoards();
+  }
+
+  Future<void> _loadBoards() async {
+    setState(() {
+      _isLoadingBoards = true;
+    });
+
+    try {
+      final boards = await _boardService.getAllBoards();
+      setState(() {
+        _boards = boards;
+        _isLoadingBoards = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading boards: $e');
+      setState(() {
+        _isLoadingBoards = false;
+      });
+      if (mounted) {
+        ErrorHandler.showError(context, e, userMessage: ErrorMessages.loadBoardsFailed(context));
+      }
+    }
   }
 
   @override
@@ -79,16 +90,15 @@ class _EditPostScreenState extends State<EditPostScreen> {
         });
       }
     } catch (e) {
-      print('Error picking image: $e');
+      debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이미지 선택 실패: $e')),
-        );
+        ErrorHandler.showError(context, e, userMessage: AppLocalizations.of(context)!.errorPickImage);
       }
     }
   }
 
   void _showImageSourceDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -96,7 +106,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('갤러리에서 선택'),
+              title: Text(l10n.chooseFromGallery),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.gallery);
@@ -104,7 +114,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('카메라로 촬영'),
+              title: Text(l10n.takePhoto),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.camera);
@@ -146,7 +156,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           postId: widget.post.id,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          country: _selectedCountry,
+          boardId: _selectedBoardId,
           imageFile: _newImage,
           keepExistingImage: _keepExistingImage,
         );
@@ -156,23 +166,19 @@ class _EditPostScreenState extends State<EditPostScreen> {
           postId: widget.post.id,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          country: _selectedCountry,
+          boardId: _selectedBoardId,
           imageUrl: widget.post.imageUrl,
         );
       }
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('게시글이 수정되었습니다')),
-        );
+        ErrorHandler.showSuccess(context, SuccessMessages.postUpdated(context));
       }
     } catch (e) {
-      print('Error updating post: $e');
+      debugPrint('Error updating post: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('게시글 수정 실패: $e')),
-        );
+        ErrorHandler.showError(context, e, userMessage: ErrorMessages.updatePostFailed(context));
       }
     } finally {
       if (mounted) {
@@ -187,7 +193,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('게시글 수정'),
+        title: Text(AppLocalizations.of(context)!.editPost),
         actions: [
           if (_isSubmitting)
             const Center(
@@ -203,63 +209,65 @@ class _EditPostScreenState extends State<EditPostScreen> {
           else
             TextButton(
               onPressed: _submitPost,
-              child: const Text(
-                '완료',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                AppLocalizations.of(context)!.save,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
         ],
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Country dropdown
-            DropdownButtonFormField<String>(
-              value: _selectedCountry,
-              decoration: const InputDecoration(
-                labelText: '국가 *',
-                border: OutlineInputBorder(),
-                hintText: '국가를 선택하세요',
-              ),
-              items: _countries.entries.map((entry) {
-                return DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedCountry = value;
-                  });
-                }
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '국가를 선택해주세요';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+        child: _isLoadingBoards
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Board dropdown
+                  DropdownButtonFormField<int>(
+                    value: _selectedBoardId,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.boardRequired,
+                      border: const OutlineInputBorder(),
+                      hintText: AppLocalizations.of(context)!.selectBoard,
+                    ),
+                    items: _boards.map((board) {
+                      return DropdownMenuItem(
+                        value: board.id,
+                        child: Text(board.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedBoardId = value;
+                        });
+                      }
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return AppLocalizations.of(context)!.pleaseSelectBoard;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
             // Title input
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: '제목 *',
-                border: OutlineInputBorder(),
-                hintText: '게시글 제목을 입력하세요',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.titleLabel,
+                border: const OutlineInputBorder(),
+                hintText: AppLocalizations.of(context)!.titleHint,
               ),
               maxLength: 100,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return '제목을 입력해주세요';
+                  return AppLocalizations.of(context)!.titleValidation;
                 }
                 if (value.trim().length < 2) {
-                  return '제목은 최소 2자 이상이어야 합니다';
+                  return AppLocalizations.of(context)!.titleMinLength;
                 }
                 return null;
               },
@@ -269,20 +277,20 @@ class _EditPostScreenState extends State<EditPostScreen> {
             // Content input
             TextFormField(
               controller: _contentController,
-              decoration: const InputDecoration(
-                labelText: '내용 *',
-                border: OutlineInputBorder(),
-                hintText: '게시글 내용을 입력하세요',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.contentLabel,
+                border: const OutlineInputBorder(),
+                hintText: AppLocalizations.of(context)!.contentHint,
                 alignLabelWithHint: true,
               ),
               maxLines: 10,
               maxLength: 5000,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return '내용을 입력해주세요';
+                  return AppLocalizations.of(context)!.contentValidation;
                 }
                 if (value.trim().length < 5) {
-                  return '내용은 최소 5자 이상이어야 합니다';
+                  return AppLocalizations.of(context)!.contentMinLength;
                 }
                 return null;
               },
@@ -328,9 +336,9 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                '새 이미지가 선택되었습니다',
-                style: TextStyle(fontSize: 12, color: Colors.blue),
+              Text(
+                AppLocalizations.of(context)!.newImageSelected,
+                style: const TextStyle(fontSize: 12, color: Colors.blue),
               ),
               const SizedBox(height: 16),
             ] else if (widget.post.imageUrl != null && _keepExistingImage) ...[
@@ -380,7 +388,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
               OutlinedButton.icon(
                 onPressed: _showImageSourceDialog,
                 icon: const Icon(Icons.edit),
-                label: const Text('이미지 변경'),
+                label: Text(AppLocalizations.of(context)!.changeImage),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -393,8 +401,8 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 icon: const Icon(Icons.add_photo_alternate),
                 label: Text(
                   widget.post.imageUrl != null
-                      ? '이미지 추가 (기존 이미지 제거됨)'
-                      : '이미지 추가 (선택)',
+                      ? AppLocalizations.of(context)!.addImageExistingRemoved
+                      : AppLocalizations.of(context)!.addImageOptional,
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -405,22 +413,22 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 TextButton.icon(
                   onPressed: _restoreExistingImage,
                   icon: const Icon(Icons.undo),
-                  label: const Text('기존 이미지 복원'),
+                  label: Text(AppLocalizations.of(context)!.restoreExistingImage),
                 ),
               ],
               const SizedBox(height: 16),
             ],
 
-            // Helper text
-            const Text(
-              '* 필수 항목입니다',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
+                  // Helper text
+                  Text(
+                    AppLocalizations.of(context)!.requiredFields,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

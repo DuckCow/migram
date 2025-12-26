@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../models/search_result_model.dart';
+import '../models/board_model.dart';
+import '../services/board_service.dart';
+import '../utils/error_handler.dart';
 
 class SearchFilterBottomSheet extends StatefulWidget {
-  final List<String>? selectedCountries;
+  final List<int>? selectedBoardIds;
   final SortType sortBy;
   final String? dateFrom;
   final String? dateTo;
   final int? minVotes;
   final bool? hasImage;
   final Function(
-    List<String>? countries,
+    List<int>? boardIds,
     SortType sortBy,
     String? dateFrom,
     String? dateTo,
@@ -19,7 +23,7 @@ class SearchFilterBottomSheet extends StatefulWidget {
 
   const SearchFilterBottomSheet({
     super.key,
-    this.selectedCountries,
+    this.selectedBoardIds,
     required this.sortBy,
     this.dateFrom,
     this.dateTo,
@@ -34,29 +38,23 @@ class SearchFilterBottomSheet extends StatefulWidget {
 }
 
 class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
-  late List<String> _selectedCountries;
+  final BoardService _boardService = BoardService();
+  late Set<int> _selectedBoardIds;
   late SortType _sortBy;
   late TextEditingController _minVotesController;
   bool? _hasImage;
-
-  // Available countries
-  static const List<Map<String, String>> _availableCountries = [
-    {'code': 'JP', 'name': '일본', 'flag': '🇯🇵'},
-    {'code': 'CA', 'name': '캐나다', 'flag': '🇨🇦'},
-    {'code': 'KR', 'name': '한국', 'flag': '🇰🇷'},
-    {'code': 'US', 'name': '미국', 'flag': '🇺🇸'},
-    {'code': 'GB', 'name': '영국', 'flag': '🇬🇧'},
-    {'code': 'AU', 'name': '호주', 'flag': '🇦🇺'},
-  ];
+  List<Board> _boards = [];
+  bool _isLoadingBoards = true;
 
   @override
   void initState() {
     super.initState();
-    _selectedCountries = List.from(widget.selectedCountries ?? []);
+    _selectedBoardIds = Set.from(widget.selectedBoardIds ?? []);
     _sortBy = widget.sortBy;
     _minVotesController =
         TextEditingController(text: widget.minVotes?.toString() ?? '');
     _hasImage = widget.hasImage;
+    _loadBoards();
   }
 
   @override
@@ -65,25 +63,50 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     super.dispose();
   }
 
-  void _toggleCountry(String countryCode) {
+  Future<void> _loadBoards() async {
     setState(() {
-      if (_selectedCountries.contains(countryCode)) {
-        _selectedCountries.remove(countryCode);
+      _isLoadingBoards = true;
+    });
+
+    try {
+      final boards = await _boardService.getAllBoards();
+      setState(() {
+        _boards = boards;
+        _isLoadingBoards = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingBoards = false;
+      });
+      if (mounted) {
+        ErrorHandler.showError(
+          context,
+          e,
+          userMessage: ErrorMessages.loadBoardsFailed(context),
+        );
+      }
+    }
+  }
+
+  void _toggleBoard(int boardId) {
+    setState(() {
+      if (_selectedBoardIds.contains(boardId)) {
+        _selectedBoardIds.remove(boardId);
       } else {
-        _selectedCountries.add(countryCode);
+        _selectedBoardIds.add(boardId);
       }
     });
   }
 
-  void _clearAllCountries() {
+  void _clearAllBoards() {
     setState(() {
-      _selectedCountries.clear();
+      _selectedBoardIds.clear();
     });
   }
 
   void _resetFilters() {
     setState(() {
-      _selectedCountries.clear();
+      _selectedBoardIds.clear();
       _sortBy = SortType.hot;
       _minVotesController.clear();
       _hasImage = null;
@@ -96,7 +119,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
         : int.tryParse(_minVotesController.text);
 
     widget.onApply(
-      _selectedCountries.isEmpty ? null : _selectedCountries,
+      _selectedBoardIds.isEmpty ? null : _selectedBoardIds.toList(),
       _sortBy,
       null, // dateFrom (not implemented in this version)
       null, // dateTo (not implemented in this version)
@@ -109,8 +132,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -127,139 +152,150 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               child: Row(
                 children: [
                   Text(
-                    '필터',
-                    style: TextStyle(
+                    'Filter',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   TextButton(
                     onPressed: _resetFilters,
-                    child: Text('초기화'),
+                    child: Text('Reset'),
                   ),
                 ],
               ),
             ),
-            Divider(height: 1),
+            const Divider(height: 1),
 
             // Scrollable content
             Flexible(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sort type section
-                    _buildSectionTitle('정렬'),
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: SortType.values.map((sortType) {
-                        final isSelected = _sortBy == sortType;
-                        return ChoiceChip(
-                          label: Text(sortType.displayName),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _sortBy = sortType;
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-
-                    SizedBox(height: 24),
-
-                    // Countries section
-                    Row(
-                      children: [
-                        _buildSectionTitle('국가'),
-                        Spacer(),
-                        if (_selectedCountries.isNotEmpty)
-                          TextButton(
-                            onPressed: _clearAllCountries,
-                            child: Text('전체 해제'),
+              child: _isLoadingBoards
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Sort type section
+                          _buildSectionTitle('Sort By'),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: SortType.values.map((sortType) {
+                              final isSelected = _sortBy == sortType;
+                              return ChoiceChip(
+                                label: Text(sortType.displayName),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() {
+                                      _sortBy = sortType;
+                                    });
+                                  }
+                                },
+                              );
+                            }).toList(),
                           ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _availableCountries.map((country) {
-                        final code = country['code']!;
-                        final isSelected = _selectedCountries.contains(code);
-                        return FilterChip(
-                          label: Text('${country['flag']} ${country['name']}'),
-                          selected: isSelected,
-                          onSelected: (selected) => _toggleCountry(code),
-                        );
-                      }).toList(),
-                    ),
 
-                    SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                    // Min votes section
-                    _buildSectionTitle('최소 추천 수'),
-                    SizedBox(height: 8),
-                    TextField(
-                      controller: _minVotesController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: '예: 10',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                          // Boards section
+                          Row(
+                            children: [
+                              _buildSectionTitle(l10n.boards),
+                              const Spacer(),
+                              if (_selectedBoardIds.isNotEmpty)
+                                TextButton(
+                                  onPressed: _clearAllBoards,
+                                  child: Text(l10n.clearAll),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _boards.map((board) {
+                              final isSelected = _selectedBoardIds.contains(board.id);
+                              final flag = board.getCountryFlag();
+                              return FilterChip(
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (flag != null) ...[
+                                      Text(flag),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Text(board.name),
+                                  ],
+                                ),
+                                selected: isSelected,
+                                onSelected: (selected) => _toggleBoard(board.id),
+                              );
+                            }).toList(),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Min votes section
+                          _buildSectionTitle('Minimum Votes'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _minVotesController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: 'e.g. 10',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Has image section
+                          _buildSectionTitle('Image Filter'),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              ChoiceChip(
+                                label: Text(l10n.all),
+                                selected: _hasImage == null,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() => _hasImage = null);
+                                  }
+                                },
+                              ),
+                              ChoiceChip(
+                                label: const Text('With Image'),
+                                selected: _hasImage == true,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() => _hasImage = true);
+                                  }
+                                },
+                              ),
+                              ChoiceChip(
+                                label: const Text('Without Image'),
+                                selected: _hasImage == false,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() => _hasImage = false);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 32),
+                        ],
                       ),
                     ),
-
-                    SizedBox(height: 24),
-
-                    // Has image section
-                    _buildSectionTitle('이미지 필터'),
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: Text('전체'),
-                          selected: _hasImage == null,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() => _hasImage = null);
-                            }
-                          },
-                        ),
-                        ChoiceChip(
-                          label: Text('이미지 있음'),
-                          selected: _hasImage == true,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() => _hasImage = true);
-                            }
-                          },
-                        ),
-                        ChoiceChip(
-                          label: Text('이미지 없음'),
-                          selected: _hasImage == false,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() => _hasImage = false);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 32),
-                  ],
-                ),
-              ),
             ),
 
             // Apply button
@@ -270,13 +306,13 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 child: ElevatedButton(
                   onPressed: _applyFilters,
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(
-                    '적용하기',
+                  child: const Text(
+                    'Apply',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -291,7 +327,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.bold,
       ),

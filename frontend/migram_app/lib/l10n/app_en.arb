@@ -1,0 +1,112 @@
+{
+  "@@locale": "en",
+
+  "errorGeneric": "An error occurred. Please try again.",
+  "errorLoadBoards": "Failed to load boards. Please try again.",
+  "errorLoadPosts": "Failed to load posts. Please try again.",
+  "errorCreatePost": "Failed to create post. Please try again.",
+  "errorUpdatePost": "Failed to update post. Please try again.",
+  "errorDeletePost": "Failed to delete post. Please try again.",
+  "errorVote": "Failed to vote. Please try again.",
+  "errorLoadComments": "Failed to load comments. Please try again.",
+  "errorCreateComment": "Failed to create comment. Please try again.",
+  "errorUpdateComment": "Failed to update comment. Please try again.",
+  "errorDeleteComment": "Failed to delete comment. Please try again.",
+  "errorNetwork": "Network error. Please check your connection.",
+
+  "successPostCreated": "Post created successfully",
+  "successPostUpdated": "Post updated successfully",
+  "successPostDeleted": "Post deleted successfully",
+  "successCommentCreated": "Comment added successfully",
+  "successCommentUpdated": "Comment updated successfully",
+  "successCommentDeleted": "Comment deleted successfully",
+
+  "appName": "Migram",
+  "all": "All",
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "edit": "Edit",
+  "post": "Post",
+  "comment": "Comment",
+  "comments": "Comments",
+  "reply": "Reply",
+  "share": "Share",
+  "profile": "Profile",
+  "logout": "Logout",
+  "login": "Login",
+
+  "boardFilter": "Board Filter",
+  "board": "Board",
+  "boards": "Boards",
+  "boardRequired": "Board *",
+  "selectBoard": "Select a board",
+  "pleaseSelectBoard": "Please select a board",
+  "noBoardsAvailable": "No boards available",
+  "clearAll": "Clear All",
+  "viewAll": "View All",
+  "applyBoards": "{count, plural, =1{Apply 1 Board} other{Apply {count} Boards}}",
+  "@applyBoards": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "createPost": "Create Post",
+  "editPost": "Edit Post",
+  "deletePost": "Delete Post",
+  "noPostsYet": "No posts yet\nCreate your first post!",
+  "postAnonymously": "Post anonymously",
+  "anonymousPostInfo": "Your identity will not be displayed",
+  "anonymous": "Anonymous",
+  "title": "Title",
+  "titleLabel": "Title *",
+  "titleHint": "Enter post title",
+  "titleValidation": "Please enter a title",
+  "titleMinLength": "Title must be at least 2 characters",
+  "content": "Content",
+  "contentLabel": "Content *",
+  "contentHint": "Enter post content",
+  "contentValidation": "Please enter content",
+  "contentMinLength": "Content must be at least 5 characters",
+  "requiredFields": "* Required fields",
+
+  "chooseFromGallery": "Choose from Gallery",
+  "takePhoto": "Take Photo",
+  "removeImage": "Remove Image",
+  "changeImage": "Change Image",
+  "addImage": "Add Image",
+  "addImageOptional": "Add Image (optional)",
+  "addImageExistingRemoved": "Add Image (existing image removed)",
+  "newImageSelected": "New image selected",
+  "restoreExistingImage": "Restore Existing Image",
+  "errorPickImage": "Failed to pick image. Please try again.",
+
+  "writeComment": "Write a comment...",
+  "writeReply": "Write a reply...",
+  "replyingTo": "Replying to",
+  "cannotReplyToReply": "Cannot reply to a reply. You can only reply to top-level comments.",
+  "hideReplies": "Hide replies",
+  "viewReplies": "View replies ({count})",
+  "@viewReplies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsCount": "{count, plural, =0{No Comments} =1{1 Comment} other{{count} Comments}}",
+  "@commentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "confirmLogout": "Are you sure you want to logout?",
+  "confirmDeletePost": "Are you sure you want to delete this post?",
+  "postNotFound": "Post not found"
+}
