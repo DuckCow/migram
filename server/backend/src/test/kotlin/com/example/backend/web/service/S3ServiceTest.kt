@@ -50,7 +50,7 @@ class S3ServiceIntegrationTest {
         println("Uploaded file URL: $uploadedUrl")
 
         // Then - 업로드 확인
-        assertTrue(uploadedUrl.contains(fileName))
+        assertTrue(uploadedUrl?.contains(fileName) == true)
 
         // 파일 삭제
         //s3Service.deleteFile(fileName)
@@ -79,9 +79,9 @@ class S3ServiceIntegrationTest {
         println("Uploaded large file URL: $uploadedUrl")
 
         // Then
-        assertTrue(uploadedUrl.contains(fileName))
+        assertTrue(uploadedUrl?.contains(fileName) == true)
 
         // Cleanup
-        s3Service.deleteFile(fileName)
+        uploadedUrl?.let { s3Service.deleteFile(fileName) }
     }
 }

@@ -57,6 +57,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+	implementation("org.flywaydb:flyway-core")
 	//developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.h2database:h2")
 	runtimeOnly("org.postgresql:postgresql")
@@ -76,6 +77,14 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
+
+	// Testcontainers for integration tests
+	testImplementation("org.testcontainers:testcontainers:1.19.0")
+	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
+	testImplementation("org.testcontainers:postgresql:1.19.0")
+
+	// MockWebServer for mocking HTTP endpoints in tests
+	testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
 
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
