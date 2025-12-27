@@ -21,7 +21,7 @@
             distribution: 'corretto'
 
         - name: Cache Gradle packages
-          uses: actions/cache@v3
+          uses: actions/cache@v4
           with:
             path: |
               ~/.gradle/caches
@@ -31,8 +31,8 @@
               ${{ runner.os }}-gradle-
 
         - name: Grant execute permission for gradlew
-          run: chmod +x server/backend/gradlew
-          working-directory: ${{ github.workspace }}
+          run: chmod +x gradlew
+          working-directory: server/backend
 
         - name: Run Integration Tests
           run: ./gradlew test --tests TranslationRedisFallbackIT
