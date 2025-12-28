@@ -105,6 +105,18 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+
+	// Prevent test worker JVM shutdown hang (force cleanup after timeout)
+	maxParallelForks = 1
+	forkEvery = 1
+	timeout.set(java.time.Duration.ofMinutes(5))
+
+	// Enable detailed logging for debugging worker lifecycle
+	testLogging {
+		events("started", "passed", "skipped", "failed")
+		showStandardStreams = true
+		exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+	}
 }
 
 tasks.test {
