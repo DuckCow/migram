@@ -17,6 +17,7 @@ import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -252,6 +253,7 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
+    @Transactional
     @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Translation API should be called only ONCE (second request uses DB cache)")
     fun testDBCache_ApiCalledOnlyOnce() {
