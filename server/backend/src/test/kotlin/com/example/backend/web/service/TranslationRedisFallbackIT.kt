@@ -136,8 +136,9 @@ class TranslationRedisFallbackIT {
         boardRepository.deleteAll()
 
         // Clear any remaining mock responses from previous tests
+        // Use timeout to prevent infinite wait (CI hang protection)
         while (Companion.mockWebServer.requestCount > 0) {
-            Companion.mockWebServer.takeRequest()
+            Companion.mockWebServer.takeRequest(1, TimeUnit.SECONDS)
         }
 
         // Create test board

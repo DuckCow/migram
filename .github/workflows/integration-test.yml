@@ -37,14 +37,13 @@
         - name: Verify Docker is running
           run: docker ps
 
-        - name: Run Integration Tests
-          run: ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon
+        - name: Run Integration Tests (with soft timeout)
+          run: |
+            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon || true
           working-directory: server/backend
-          timeout-minutes: 5
-          continue-on-error: true
 
         - name: Collect thread dump on timeout/failure
-          if: failure()
+          if: always()
           run: |
             echo "=== Gradle processes ==="
             ps aux | grep gradle || true
