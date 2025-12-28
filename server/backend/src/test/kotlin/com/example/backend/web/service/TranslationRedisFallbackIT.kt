@@ -46,13 +46,7 @@ class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLC
  * 4. Same source/target language returns original (no API call)
  */
 @SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.NONE,
-    properties = [
-        // Explicitly disable Redis auto-configuration to prevent Lettuce/Netty thread creation
-        "spring.autoconfigure.exclude=" +
-                "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
-                "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
-    ]
+    webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 @Testcontainers
 @ActiveProfiles("test")
