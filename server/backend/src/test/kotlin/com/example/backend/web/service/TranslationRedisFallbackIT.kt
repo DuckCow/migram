@@ -39,6 +39,7 @@ class TranslationRedisFallbackIT {
         private val mockWebServer = MockWebServer()
 
         @Container
+        @JvmField
         val postgres = PostgreSQLContainer<Nothing>("postgres:15-alpine").apply {
             withDatabaseName("testdb")
             withUsername("test")
