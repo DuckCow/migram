@@ -25,13 +25,18 @@ import org.testcontainers.junit.jupiter.Testcontainers
 class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLContainer>(imageName)
 
 /**
- * Integration test for TranslationService Redis fallback behavior
+ * Integration test for TranslationService DB caching behavior
  *
- * Objective: Verify that when Redis is unavailable, the service gracefully degrades to DB-only caching
+ * Objective: Verify that TranslationService uses DB-only caching (without Redis dependency)
+ *
+ * Architecture Note:
+ * - TranslationService does NOT use Spring Cache (@Cacheable)
+ * - Uses DB-only caching via contentTranslationRepository
+ * - Redis is intentionally NOT configured for this service (avoids external dependency)
  *
  * Test scenarios:
- * 1. Redis down (misconfigured host) → Service works via DB fallback
- * 2. Translation saved to DB cache when Redis unavailable
+ * 1. Service works without Redis configuration
+ * 2. Translation saved to DB cache
  * 3. Translation API called only once (second request uses DB cache)
  * 4. Same source/target language returns original (no API call)
  */
@@ -64,12 +69,10 @@ class TranslationRedisFallbackIT {
             registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
             registry.add("spring.jpa.database-platform") { "org.hibernate.dialect.PostgreSQLDialect" }
 
-            // ========== Redis (Intentionally Misconfigured for Fallback Test) ==========
-            // Override application-test.yml (cache.type=none) to enable Redis for this test
-            registry.add("spring.cache.type") { "redis" }
-            // Force WRONG host to simulate Redis unavailability
-            registry.add("spring.data.redis.host") { "invalid-redis-host-does-not-exist" }
-            registry.add("spring.data.redis.port") { "6390" }  // Wrong port
+            // ========== Redis (Not Used by TranslationService) ==========
+            // TranslationService uses DB-only caching (contentTranslationRepository)
+            // No need to configure Redis for this test
+            // Note: spring.cache.type=none (from application-test.yml) disables RedisCacheConfig
 
             // ========== Translation Service (Dynamic - MockWebServer) ==========
             // Point to MockWebServer (lazy initialization ensures it's started)
@@ -148,9 +151,9 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
-    @DisplayName("Redis down → Service should fallback to DB cache and work without errors")
-    fun testRedisFallback_ServiceWorksWithoutErrors() {
-        // Given: Redis is unavailable (configured with wrong host in DynamicPropertySource)
+    @DisplayName("Service works with DB-only caching (no Redis dependency)")
+    fun testDBCache_ServiceWorksWithoutErrors() {
+        // Given: Spring Cache is disabled (cache.type=none)
         // When: Request translation for the first time
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
@@ -158,7 +161,7 @@ class TranslationRedisFallbackIT {
             targetLang = "ko"
         )
 
-        // Then: Should NOT throw 500 error despite Redis being down
+        // Then: Should work without errors (no Redis required)
         assertDoesNotThrow {
             val result = translationService.getTranslation(request)
 
@@ -174,9 +177,9 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
-    @DisplayName("Translation should be saved to DB cache when Redis is unavailable")
-    fun testRedisFallback_TranslationSavedToDatabase() {
-        // Given: Redis is unavailable
+    @DisplayName("Translation should be saved to DB cache")
+    fun testDBCache_TranslationSavedToDatabase() {
+        // Given: Service uses DB-only caching
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
             contentId = testPost.id,
@@ -197,8 +200,8 @@ class TranslationRedisFallbackIT {
 
     @Test
     @DisplayName("Translation API should be called only ONCE (second request uses DB cache)")
-    fun testRedisFallback_ApiCalledOnlyOnce() {
-        // Given: Redis is unavailable
+    fun testDBCache_ApiCalledOnlyOnce() {
+        // Given: Service uses DB caching
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
             contentId = testPost.id,
@@ -226,7 +229,7 @@ class TranslationRedisFallbackIT {
 
     @Test
     @DisplayName("Same source and target language should return original text (no API call)")
-    fun testRedisFallback_SameLanguageNoApiCall() {
+    fun testDBCache_SameLanguageNoApiCall() {
         // Given: Request translation to same language as original
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
