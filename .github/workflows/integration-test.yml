@@ -123,9 +123,12 @@
             report_paths: '**/build/test-results/test/TEST-*.xml'
             check_name: Integration Test Report
 
-        - name: Upload Test Results
+        - name: Upload Test Results and Logs
           uses: actions/upload-artifact@v4
-          if: failure()
+          if: always()
           with:
-            name: test-results
-            path: server/backend/build/reports/tests/test/
+            name: test-results-and-logs
+            path: |
+              server/backend/build/reports/tests/test/
+              server/backend/build/test-results/test/TEST-*.xml
+              server/backend/test-output.log

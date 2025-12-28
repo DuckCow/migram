@@ -28,13 +28,13 @@ spring:
     allow-bean-definition-overriding: true
 
   # Redis cache configuration (disabled for tests by default)
-  # Individual tests can override spring.cache.type via @DynamicPropertySource
+  # Redis connection intentionally points to invalid host to prevent accidental connection
   cache:
     type: none
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: invalid-redis-host-does-not-exist
+      port: 6390
       timeout: 500ms
       connect-timeout: 500ms
       lettuce:
