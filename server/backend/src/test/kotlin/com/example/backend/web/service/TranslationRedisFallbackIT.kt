@@ -12,6 +12,7 @@ import org.junit.jupiter.api.*
 import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -45,6 +46,7 @@ class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLC
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class TranslationRedisFallbackIT {
 
     companion object {
@@ -63,7 +65,24 @@ class TranslationRedisFallbackIT {
         @JvmStatic
         @AfterAll
         fun tearDown() {
-            mockWebServer.shutdown()
+            // Shutdown MockWebServer with timeout to prevent hang
+            try {
+                val shutdownThread = Thread {
+                    try {
+                        mockWebServer.shutdown()
+                    } catch (e: Exception) {
+                        System.err.println("MockWebServer shutdown error: ${e.message}")
+                    }
+                }
+                shutdownThread.start()
+                shutdownThread.join(3000) // Wait max 3 seconds
+                if (shutdownThread.isAlive) {
+                    System.err.println("MockWebServer shutdown timeout - forcing interrupt")
+                    shutdownThread.interrupt()
+                }
+            } catch (e: Exception) {
+                System.err.println("MockWebServer teardown failed: ${e.message}")
+            }
         }
 
         @JvmStatic
