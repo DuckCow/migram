@@ -34,9 +34,13 @@
           run: chmod +x gradlew
           working-directory: server/backend
 
+        - name: Verify Docker is running
+          run: docker ps
+
         - name: Run Integration Tests
-          run: ./gradlew test --tests TranslationRedisFallbackIT
+          run: ./gradlew test --tests TranslationRedisFallbackIT --info
           working-directory: server/backend
+          timeout-minutes: 15
 
         - name: Publish Test Report
           uses: mikepenz/action-junit-report@v4

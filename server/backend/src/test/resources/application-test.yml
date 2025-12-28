@@ -30,6 +30,10 @@ spring:
     redis:
       host: localhost
       port: 6379
+      timeout: 1000ms
+      connect-timeout: 1000ms
+      lettuce:
+        shutdown-timeout: 100ms
 
   # OAuth2 test configuration
   security:
