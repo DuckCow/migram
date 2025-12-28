@@ -151,16 +151,10 @@ class TranslationRedisFallbackIT {
         userRepository.deleteAll()
         boardRepository.deleteAll()
 
-        // Clear any remaining mock responses from previous tests
-        // Drain all pending requests with timeout to prevent infinite wait
-        println("Draining MockWebServer pending requests...")
-        var drainedCount = 0
-        var request = Companion.mockWebServer.takeRequest(100, TimeUnit.MILLISECONDS)
-        while (request != null) {
-            drainedCount++
-            request = Companion.mockWebServer.takeRequest(100, TimeUnit.MILLISECONDS)
-        }
-        println("Drained $drainedCount pending requests from MockWebServer")
+        // DO NOT drain MockWebServer requests here!
+        // - requestCount is cumulative and cannot be reset
+        // - takeRequest() is blocking and can hang
+        // - Each test will enqueue its own mock responses as needed
 
         // Create test board
         val board = boardRepository.save(
@@ -195,27 +189,19 @@ class TranslationRedisFallbackIT {
             )
         )
 
-        // Prepare mock responses for translation API
-        // Enqueue 2 responses as safety net (DB cache should prevent 2nd API call)
-        val mockResponse = MockResponse()
-            .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
-            .addHeader("Content-Type", "application/json")
-        Companion.mockWebServer.enqueue(mockResponse)
-        println("Enqueued mock response #1")
-
-        // Safety net: If DB caching fails, 2nd request won't hang
-        // Test will fail on requestCount assertion instead
-        Companion.mockWebServer.enqueue(mockResponse)
-        println("Enqueued mock response #2 (safety net)")
         println("=== @BeforeEach setup complete ===")
-        println("")
     }
 
     @Test
     @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Service works with DB-only caching (no Redis dependency)")
     fun testDBCache_ServiceWorksWithoutErrors() {
-        // Given: Spring Cache is disabled (cache.type=none)
+        // Given: Enqueue mock response for translation API
+        val mockResponse = MockResponse()
+            .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
+            .addHeader("Content-Type", "application/json")
+        Companion.mockWebServer.enqueue(mockResponse)
+
         // When: Request translation for the first time
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
@@ -242,14 +228,18 @@ class TranslationRedisFallbackIT {
     @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Translation should be saved to DB cache")
     fun testDBCache_TranslationSavedToDatabase() {
-        // Given: Service uses DB-only caching
+        // Given: Enqueue mock response for translation API
+        val mockResponse = MockResponse()
+            .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
+            .addHeader("Content-Type", "application/json")
+        Companion.mockWebServer.enqueue(mockResponse)
+
+        // When: Request translation
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
             contentId = testPost.id,
             targetLang = "ko"
         )
-
-        // When: Request translation
         translationService.getTranslation(request)
 
         // Then: Translation should be saved to content_translation table
@@ -265,15 +255,20 @@ class TranslationRedisFallbackIT {
     @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Translation API should be called only ONCE (second request uses DB cache)")
     fun testDBCache_ApiCalledOnlyOnce() {
-        // Given: Service uses DB caching
+        // Given: Enqueue mock response for translation API
+        val mockResponse = MockResponse()
+            .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
+            .addHeader("Content-Type", "application/json")
+        Companion.mockWebServer.enqueue(mockResponse)
+
+        // Capture requestCount before test
+        val requestCountBefore = Companion.mockWebServer.requestCount
+
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
             contentId = testPost.id,
             targetLang = "ko"
         )
-
-        // Prepare only ONE mock response
-        // If API is called twice, the second call will fail (no more enqueued responses)
 
         // When: Call translation service TWICE
         val firstResult = translationService.getTranslation(request)
@@ -293,22 +288,25 @@ class TranslationRedisFallbackIT {
         assertThat(secondResult.cached).isTrue()
         assertThat(secondResult.translatedText).contains("안녕하세요")
 
-        // Verify: MockWebServer received exactly ONE request
-        assertThat(Companion.mockWebServer.requestCount).isEqualTo(1)
+        // Verify: MockWebServer received exactly ONE request (delta)
+        val requestCountAfter = Companion.mockWebServer.requestCount
+        assertThat(requestCountAfter - requestCountBefore).isEqualTo(1)
     }
 
     @Test
     @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Same source and target language should return original text (no API call)")
     fun testDBCache_SameLanguageNoApiCall() {
-        // Given: Request translation to same language as original
+        // Given: No mock response needed (no API call expected)
+        // Capture requestCount before test
+        val requestCountBefore = Companion.mockWebServer.requestCount
+
+        // When: Request translation to same language as original
         val request = TranslationRequestDTO(
             contentType = ContentType.POST,
             contentId = testPost.id,
             targetLang = "en"  // Same as originalLang
         )
-
-        // When: Request translation
         val result = translationService.getTranslation(request)
 
         // Then: Should return original text without calling API
@@ -316,7 +314,8 @@ class TranslationRedisFallbackIT {
         assertThat(result.model).isEqualTo("none")
         assertThat(result.cached).isTrue()  // Returned as cached (no API call)
 
-        // Verify: MockWebServer received ZERO requests (no API call needed)
-        assertThat(Companion.mockWebServer.requestCount).isEqualTo(0)
+        // Verify: MockWebServer received ZERO requests (delta)
+        val requestCountAfter = Companion.mockWebServer.requestCount
+        assertThat(requestCountAfter - requestCountBefore).isEqualTo(0)
     }
 }
