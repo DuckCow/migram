@@ -23,17 +23,22 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
-  # Redis cache configuration (for Redis fallback tests, intentionally misconfigured)
+  # Redis cache configuration (disabled for tests by default)
+  # Individual tests can override spring.cache.type via @DynamicPropertySource
   cache:
-    type: redis
+    type: none
   data:
     redis:
       host: localhost
       port: 6379
-      timeout: 1000ms
-      connect-timeout: 1000ms
+      timeout: 500ms
+      connect-timeout: 500ms
       lettuce:
         shutdown-timeout: 100ms
+        pool:
+          max-active: 1
+          max-idle: 1
+          min-idle: 0
 
   # OAuth2 test configuration
   security:

@@ -65,6 +65,8 @@ class TranslationRedisFallbackIT {
             registry.add("spring.jpa.database-platform") { "org.hibernate.dialect.PostgreSQLDialect" }
 
             // ========== Redis (Intentionally Misconfigured for Fallback Test) ==========
+            // Override application-test.yml (cache.type=none) to enable Redis for this test
+            registry.add("spring.cache.type") { "redis" }
             // Force WRONG host to simulate Redis unavailability
             registry.add("spring.data.redis.host") { "invalid-redis-host-does-not-exist" }
             registry.add("spring.data.redis.port") { "6390" }  // Wrong port
