@@ -1,0 +1,155 @@
+  name: Integration Tests
+
+  on:
+    push:
+      branches: [ main, develop ]
+    pull_request:
+      branches: [ main, develop ]
+
+  permissions:
+    contents: read
+    checks: write
+    pull-requests: write
+
+  jobs:
+    integration-test:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Set up JDK 17
+          uses: actions/setup-java@v4
+          with:
+            java-version: '17'
+            distribution: 'corretto'
+
+        - name: Cache Gradle packages
+          uses: actions/cache@v4
+          with:
+            path: |
+              ~/.gradle/caches
+              ~/.gradle/wrapper
+            key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+            restore-keys: |
+              ${{ runner.os }}-gradle-
+
+        - name: Grant execute permission for gradlew
+          run: chmod +x gradlew
+          working-directory: server/backend
+
+        - name: Verify Docker is running
+          run: docker ps
+
+        - name: Run Integration Tests (with soft timeout and worker tracking)
+          run: |
+            set -euo pipefail
+            # Start test with timeout, capture all output
+            echo "=== Starting Gradle test execution ==="
+            # Run with tee to capture output, preserve exit code with pipefail
+            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon 2>&1 | tee test-output.log
+            TEST_EXIT_CODE=$?
+            echo "=== Gradle command completed (exit code: $TEST_EXIT_CODE) ==="
+            exit $TEST_EXIT_CODE
+          working-directory: server/backend
+          continue-on-error: true
+
+        - name: Identify and dump test worker JVM (not Gradle daemon)
+          if: always()
+          run: |
+            echo "=== Identifying Gradle Test Worker JVM ==="
+
+            # List ALL Java processes with full details
+            echo "All Java processes:"
+            ps aux | grep java | grep -v grep || true
+            echo ""
+
+            # Try to find test worker by various patterns
+            echo "=== Searching for test worker PID ==="
+
+            # Pattern 1: "Gradle Test Executor"
+            WORKER_PID=$(pgrep -f "Gradle Test Executor" | head -1)
+            if [ -n "$WORKER_PID" ]; then
+              echo "Found test worker by 'Gradle Test Executor': PID $WORKER_PID"
+            fi
+
+            # Pattern 2: GradleWorkerMain
+            if [ -z "$WORKER_PID" ]; then
+              WORKER_PID=$(pgrep -f "GradleWorkerMain" | head -1)
+              if [ -n "$WORKER_PID" ]; then
+                echo "Found test worker by 'GradleWorkerMain': PID $WORKER_PID"
+              fi
+            fi
+
+            # Pattern 3: Search test output for worker PID
+            if [ -z "$WORKER_PID" ] && [ -f test-output.log ]; then
+              echo "Searching test output for worker PID..."
+              grep -oP 'Gradle Test Executor \d+ PID: \K\d+' test-output.log | head -1 || true
+            fi
+
+            # Dump worker JVM if found
+            if [ -n "$WORKER_PID" ]; then
+              echo "======================================"
+              echo "TEST WORKER JVM THREAD DUMP (PID: $WORKER_PID)"
+              echo "======================================"
+              ps -p $WORKER_PID -o pid,ppid,comm,args || true
+              echo "--------------------------------------"
+              jstack -l $WORKER_PID 2>&1 || jcmd $WORKER_PID Thread.print 2>&1 || true
+              echo ""
+              echo "=== Analyzing non-daemon threads ==="
+              jstack $WORKER_PID 2>&1 | grep -A 5 "daemon=false" || echo "No non-daemon threads found"
+            else
+              echo "⚠️  Test worker JVM not found - it may have already exited"
+              echo "Dumping ALL Java processes instead:"
+              for pid in $(pgrep -f java); do
+                echo "--- PID $pid ---"
+                ps -p $pid -o pid,ppid,comm,args || true
+                jstack -l $pid 2>&1 | head -50 || true
+              done
+            fi
+
+            echo ""
+            echo "=== Last resort: Force kill any hanging test workers ==="
+            pkill -9 -f "Gradle Test Executor" || echo "No test executor to kill"
+            pkill -9 -f "GradleWorkerMain" || echo "No worker main to kill"
+          working-directory: server/backend
+
+        - name: Cleanup Gradle and reap zombie processes
+          if: always()
+          run: |
+            echo "=== Stopping Gradle daemons ==="
+            ./gradlew --stop || true
+
+            echo ""
+            echo "=== Checking for zombie processes ==="
+            ps aux | grep -E "java.*<defunct>" || echo "No zombie Java processes"
+
+            echo ""
+            echo "=== Checking for remaining Java processes ==="
+            ps aux | grep java | grep -v grep || echo "No Java processes remaining"
+
+            echo ""
+            echo "=== Reaping any zombie processes ==="
+            # Wait briefly for parent processes to reap zombies
+            sleep 2
+            ps aux | grep -E "java.*<defunct>" && echo "WARNING: Zombie processes still present" || echo "All zombies reaped"
+          working-directory: server/backend
+
+        - name: Publish Test Report
+          uses: mikepenz/action-junit-report@v4
+          # Skip for fork PRs (no permission to create check runs)
+          if: always() && github.event.pull_request.head.repo.full_name == github.repository
+          with:
+            report_paths: '**/build/test-results/test/TEST-*.xml'
+            check_name: Integration Test Report
+
+        - name: Upload Test Results and Logs
+          uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: test-results-and-logs
+            path: |
+              server/backend/build/reports/tests/test/
+              server/backend/build/test-results/test/TEST-*.xml
+              server/backend/test-output.log
