@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.time.Duration
 
 plugins {
 	id("org.springframework.boot") version "3.1.3"
@@ -109,7 +110,7 @@ tasks.withType<Test> {
 	// Prevent test worker JVM shutdown hang (force cleanup after timeout)
 	maxParallelForks = 1
 	forkEvery = 1
-	timeout.set(java.time.Duration.ofMinutes(5))
+	timeout.set(Duration.ofMinutes(5))
 
 	// Enable detailed logging for debugging worker lifecycle
 	testLogging {

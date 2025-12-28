@@ -39,11 +39,16 @@
 
         - name: Run Integration Tests (with soft timeout and worker tracking)
           run: |
+            set -euo pipefail
             # Start test with timeout, capture all output
             echo "=== Starting Gradle test execution ==="
-            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon 2>&1 | tee test-output.log || true
-            echo "=== Gradle command completed (exit code: $?) ==="
+            # Run with tee to capture output, preserve exit code with pipefail
+            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon 2>&1 | tee test-output.log
+            TEST_EXIT_CODE=$?
+            echo "=== Gradle command completed (exit code: $TEST_EXIT_CODE) ==="
+            exit $TEST_EXIT_CODE
           working-directory: server/backend
+          continue-on-error: true
 
         - name: Identify and dump test worker JVM (not Gradle daemon)
           if: always()
