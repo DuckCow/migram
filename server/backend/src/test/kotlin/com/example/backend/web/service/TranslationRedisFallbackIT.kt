@@ -41,7 +41,10 @@ class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLC
 class TranslationRedisFallbackIT {
 
     companion object {
-        private val mockWebServer = MockWebServer()
+        // MockWebServer for mocking translation API - initialized lazily
+        private val mockWebServer: MockWebServer by lazy {
+            MockWebServer().apply { start() }
+        }
 
         @Container
         @JvmField
@@ -50,18 +53,17 @@ class TranslationRedisFallbackIT {
             .withUsername("test")
             .withPassword("test")
 
-        init {
-            mockWebServer.start()
-        }
-
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            // PostgreSQL configuration
+            // PostgreSQL configuration (container is guaranteed to be started by Testcontainers)
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+            registry.add("spring.jpa.database-platform") { "org.hibernate.dialect.PostgreSQLDialect" }
             registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
+            registry.add("spring.jpa.show-sql") { "false" }
 
             // Redis configuration: Force Redis cache type but with WRONG host to make it unavailable
             // This simulates a production scenario where Redis is configured but unreachable
@@ -69,7 +71,7 @@ class TranslationRedisFallbackIT {
             registry.add("spring.data.redis.host") { "invalid-redis-host-does-not-exist" }
             registry.add("spring.data.redis.port") { "6390" }  // Wrong port
 
-            // Translation service configuration: Point to mock server
+            // Translation service configuration: Point to mock server (lazy initialization ensures it's started)
             registry.add("translation.base-url") { mockWebServer.url("/").toString().trimEnd('/') }
             registry.add("translation.timeout-ms") { "5000" }
 
