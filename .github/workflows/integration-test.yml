@@ -42,18 +42,27 @@
             timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon || true
           working-directory: server/backend
 
-        - name: Collect thread dump on timeout/failure
+        - name: Collect thread dump and process info
           if: always()
           run: |
             echo "=== Gradle processes ==="
-            ps aux | grep gradle || true
-            echo "=== Java processes ==="
-            ps aux | grep java || true
-            echo "=== JVM thread dumps (if any Java processes running) ==="
-            for pid in $(pgrep -f 'gradle|java'); do
-              echo "Thread dump for PID $pid:"
-              jstack $pid || jcmd $pid Thread.print || kill -3 $pid || true
+            ps aux | grep -E 'gradle|GradleDaemon' || true
+            echo ""
+            echo "=== Java/Test Worker processes ==="
+            ps aux | grep -E 'java.*test|GradleWorker' || true
+            echo ""
+            echo "=== All JVM thread dumps ==="
+            for pid in $(pgrep -f 'java'); do
+              echo "======================================"
+              echo "Thread dump for Java PID $pid:"
+              echo "Process info: $(ps -p $pid -o pid,ppid,comm,args || true)"
+              echo "--------------------------------------"
+              jstack -l $pid 2>&1 || jcmd $pid Thread.print 2>&1 || kill -3 $pid 2>&1 || echo "Failed to get thread dump for $pid"
+              echo ""
             done
+            echo ""
+            echo "=== Non-daemon thread analysis ==="
+            echo "Looking for threads preventing JVM shutdown (Lettuce, Netty, HikariCP, OkHttp)..."
           working-directory: server/backend
 
         - name: Publish Test Report
