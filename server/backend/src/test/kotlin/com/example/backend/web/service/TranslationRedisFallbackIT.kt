@@ -19,6 +19,12 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
+ * Custom PostgreSQL container class to resolve Kotlin generic type issues
+ * This is the recommended pattern from Testcontainers documentation for Kotlin
+ */
+class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLContainer>(imageName)
+
+/**
  * Integration test for TranslationService Redis fallback behavior
  *
  * Objective: Verify that when Redis is unavailable, the service gracefully degrades to DB-only caching
@@ -39,7 +45,7 @@ class TranslationRedisFallbackIT {
 
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<Nothing> = PostgreSQLContainer("postgres:15-alpine")
+        val postgres: KPostgreSQLContainer = KPostgreSQLContainer("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test")
