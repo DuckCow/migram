@@ -9,6 +9,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
+import com.zaxxer.hikari.HikariDataSource
 import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -20,6 +21,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 
 /**
  * Custom PostgreSQL container class to resolve Kotlin generic type issues
@@ -43,7 +45,15 @@ class KPostgreSQLContainer(imageName: String) : PostgreSQLContainer<KPostgreSQLC
  * 3. Translation API called only once (second request uses DB cache)
  * 4. Same source/target language returns original (no API call)
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.NONE,
+    properties = [
+        // Explicitly disable Redis auto-configuration to prevent Lettuce/Netty thread creation
+        "spring.autoconfigure.exclude=" +
+                "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
+                "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
+    ]
+)
 @Testcontainers
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -65,11 +75,14 @@ class TranslationRedisFallbackIT {
         @JvmStatic
         @AfterAll
         fun tearDown() {
-            // Shutdown MockWebServer with timeout to prevent hang
+            println("=== Starting test cleanup to prevent worker JVM hang ===")
+
+            // 1. Shutdown MockWebServer with timeout to prevent hang
             try {
                 val shutdownThread = Thread {
                     try {
                         mockWebServer.shutdown()
+                        println("MockWebServer shutdown complete")
                     } catch (e: Exception) {
                         System.err.println("MockWebServer shutdown error: ${e.message}")
                     }
@@ -83,6 +96,8 @@ class TranslationRedisFallbackIT {
             } catch (e: Exception) {
                 System.err.println("MockWebServer teardown failed: ${e.message}")
             }
+
+            println("=== Test cleanup complete ===")
         }
 
         @JvmStatic
@@ -124,6 +139,9 @@ class TranslationRedisFallbackIT {
 
     @Autowired
     private lateinit var entityManager: EntityManager
+
+    @Autowired
+    private lateinit var dataSource: DataSource
 
     private lateinit var testPost: Post
 
