@@ -115,6 +115,27 @@
             pkill -9 -f "GradleWorkerMain" || echo "No worker main to kill"
           working-directory: server/backend
 
+        - name: Cleanup Gradle and reap zombie processes
+          if: always()
+          run: |
+            echo "=== Stopping Gradle daemons ==="
+            ./gradlew --stop || true
+
+            echo ""
+            echo "=== Checking for zombie processes ==="
+            ps aux | grep -E "java.*<defunct>" || echo "No zombie Java processes"
+
+            echo ""
+            echo "=== Checking for remaining Java processes ==="
+            ps aux | grep java | grep -v grep || echo "No Java processes remaining"
+
+            echo ""
+            echo "=== Reaping any zombie processes ==="
+            # Wait briefly for parent processes to reap zombies
+            sleep 2
+            ps aux | grep -E "java.*<defunct>" && echo "WARNING: Zombie processes still present" || echo "All zombies reaped"
+          working-directory: server/backend
+
         - name: Publish Test Report
           uses: mikepenz/action-junit-report@v4
           # Skip for fork PRs (no permission to create check runs)
