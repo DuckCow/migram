@@ -12,11 +12,10 @@ Implements comprehensive integration test (`TranslationRedisFallbackIT`) to veri
 
 ### 1. New Integration Test (`TranslationRedisFallbackIT.kt`)
 
-**5 Test Scenarios:**
+**4 Test Scenarios:**
 - ✅ Redis down → Service works without errors
 - ✅ Translation saved to DB cache when Redis unavailable
 - ✅ Translation API called only ONCE (second request uses DB cache)
-- ✅ Version-based cache invalidation triggers new API call
 - ✅ Same source/target language returns original text (no API call)
 
 **Test Configuration:**
@@ -113,7 +112,6 @@ GitHub Actions will automatically run this test with a properly configured Docke
 | DB fallback works | `contentTranslationRepository.findBy().isPresent` | ✅ |
 | API called only once | `mockWebServer.requestCount == 1` | ✅ |
 | Second request uses DB cache | `result.cached == true` | ✅ |
-| Version invalidation | Version 2 triggers new API call | ✅ |
 
 ---
 

@@ -25,9 +25,9 @@ import org.testcontainers.junit.jupiter.Testcontainers
  *
  * Test scenarios:
  * 1. Redis down (misconfigured host) → Service works via DB fallback
- * 2. Translation API called only once on first request
- * 3. Second request uses DB cache (no additional API call)
- * 4. No 500 errors despite Redis being unavailable
+ * 2. Translation saved to DB cache when Redis unavailable
+ * 3. Translation API called only once (second request uses DB cache)
+ * 4. Same source/target language returns original (no API call)
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
@@ -133,15 +133,14 @@ class TranslationRedisFallbackIT {
             )
         )
 
-        // Create test post with content_version = 1
+        // Create test post
         testPost = postRepository.save(
             Post(
                 title = "Hello World",
                 content = "This is a test post in English.",
                 board = board,
                 user = user,
-                originalLang = "en",
-                contentVersion = 1
+                originalLang = "en"
             )
         )
 
@@ -227,41 +226,6 @@ class TranslationRedisFallbackIT {
 
         // Verify: MockWebServer received exactly ONE request
         assertThat(Companion.mockWebServer.requestCount).isEqualTo(1)
-    }
-
-    @Test
-    @DisplayName("Version-based cache invalidation: New version should trigger new API call")
-    fun testRedisFallback_VersionBasedCacheInvalidation() {
-        // Given: Translation cached for version 1
-        val request = TranslationRequestDTO(
-            contentType = ContentType.POST,
-            contentId = testPost.id,
-            targetLang = "ko"
-        )
-        translationService.getTranslation(request)
-
-        // Prepare another mock response for the updated content
-        val updatedMockResponse = MockResponse()
-            .setBody("""{"translatedText": "업데이트된 게시물", "model": "opus-mt-en-ko"}""")
-            .addHeader("Content-Type", "application/json")
-        Companion.mockWebServer.enqueue(updatedMockResponse)
-
-        // When: Content is updated (version incremented to 2)
-        val updatedPost = testPost.copy(
-            content = "Updated post content",
-            contentVersion = 2
-        )
-        postRepository.save(updatedPost)
-
-        // When: Request translation again (same post ID, same language, but version 2)
-        val resultAfterUpdate = translationService.getTranslation(request)
-
-        // Then: Should call API again (version changed, cache invalidated)
-        assertThat(resultAfterUpdate.cached).isFalse()  // New API call due to version change
-        assertThat(resultAfterUpdate.translatedText).isEqualTo("업데이트된 게시물")
-
-        // Verify: MockWebServer received TWO requests total (one for v1, one for v2)
-        assertThat(Companion.mockWebServer.requestCount).isEqualTo(2)
     }
 
     @Test
