@@ -32,7 +32,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @ActiveProfiles("test")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TranslationRedisFallbackIT {
 
     companion object {
@@ -40,22 +39,13 @@ class TranslationRedisFallbackIT {
 
         @Container
         @JvmField
-        val postgres = PostgreSQLContainer<Nothing>("postgres:15-alpine").apply {
-            withDatabaseName("testdb")
-            withUsername("test")
-            withPassword("test")
-        }
+        val postgres: PostgreSQLContainer<Nothing> = PostgreSQLContainer("postgres:15-alpine")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test")
 
-        @JvmStatic
-        @BeforeAll
-        fun startMockServer() {
+        init {
             mockWebServer.start()
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun stopMockServer() {
-            mockWebServer.shutdown()
         }
 
         @JvmStatic
