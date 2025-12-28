@@ -112,7 +112,9 @@ class TranslationRedisFallbackIT {
 
             // ========== Translation Service (Dynamic - MockWebServer) ==========
             // Point to MockWebServer (lazy initialization ensures it's started)
-            registry.add("translation.base-url") { mockWebServer.url("/").toString().trimEnd('/') }
+            val mockServerUrl = mockWebServer.url("/").toString().trimEnd('/')
+            println("=== MockWebServer started at: $mockServerUrl ===")
+            registry.add("translation.base-url") { mockServerUrl }
         }
     }
 
@@ -141,6 +143,8 @@ class TranslationRedisFallbackIT {
 
     @BeforeEach
     fun setupTestData() {
+        println("=== Starting @BeforeEach setup ===")
+
         // Clear database before each test
         contentTranslationRepository.deleteAll()
         postRepository.deleteAll()
@@ -148,10 +152,15 @@ class TranslationRedisFallbackIT {
         boardRepository.deleteAll()
 
         // Clear any remaining mock responses from previous tests
-        // Use timeout to prevent infinite wait (CI hang protection)
-        while (Companion.mockWebServer.requestCount > 0) {
-            Companion.mockWebServer.takeRequest(1, TimeUnit.SECONDS)
+        // Drain all pending requests with timeout to prevent infinite wait
+        println("Draining MockWebServer pending requests...")
+        var drainedCount = 0
+        var request = Companion.mockWebServer.takeRequest(100, TimeUnit.MILLISECONDS)
+        while (request != null) {
+            drainedCount++
+            request = Companion.mockWebServer.takeRequest(100, TimeUnit.MILLISECONDS)
         }
+        println("Drained $drainedCount pending requests from MockWebServer")
 
         // Create test board
         val board = boardRepository.save(
@@ -192,10 +201,14 @@ class TranslationRedisFallbackIT {
             .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
             .addHeader("Content-Type", "application/json")
         Companion.mockWebServer.enqueue(mockResponse)
+        println("Enqueued mock response #1")
 
         // Safety net: If DB caching fails, 2nd request won't hang
         // Test will fail on requestCount assertion instead
         Companion.mockWebServer.enqueue(mockResponse)
+        println("Enqueued mock response #2 (safety net)")
+        println("=== @BeforeEach setup complete ===")
+        println("")
     }
 
     @Test
