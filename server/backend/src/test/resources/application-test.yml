@@ -1,45 +1,85 @@
 spring:
-
   config:
     activate:
-      on-profile: test  # 이전 방식인 spring.profiles 대신 새로운 문법 사용
+      on-profile: test
 
+  # Database configuration (overridden by @DynamicPropertySource for Testcontainers tests)
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
     username: sa
     password:
+    hikari:
+      connection-timeout: 1000
+      maximum-pool-size: 3
+      minimum-idle: 1
+
   jpa:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+  # Flyway disabled for tests (using ddl-auto)
+  flyway:
+    enabled: false
+
   main:
     allow-bean-definition-overriding: true
 
+  # Redis cache configuration (disabled for tests by default)
+  # Redis connection intentionally points to invalid host to prevent accidental connection
+  cache:
+    type: none
+  data:
+    redis:
+      host: invalid-redis-host-does-not-exist
+      port: 6390
+      timeout: 500ms
+      connect-timeout: 500ms
+      lettuce:
+        shutdown-timeout: 100ms
+        pool:
+          max-active: 1
+          max-idle: 1
+          min-idle: 0
+
+  # OAuth2 test configuration
+  security:
     oauth2:
       client:
         registration:
           google:
-            client-id: test
-            client-secret: test
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
 
+# JWT test configuration
+jwt:
+  secret: test-jwt-secret-key-for-integration-testing-minimum-256-bits-required-for-hs256-algorithm
+  access-token-validity-in-ms: 3600000
+  refresh-token-validity-in-ms: 86400000
 
+# AWS S3 test configuration (disabled, using dummy values)
 cloud:
   aws:
     s3:
-      bucket: withers-test
+      bucket: test-bucket
     stack:
       auto: false
-    region.static: ap-northeast-2
+    region:
+      static: us-east-1
     credentials:
-      access-Key: ${TEST_ACCESS_KEY}
-      secret-Key: ${TEST_SECRET_KEY}
+      access-Key: test-access-key
+      secret-Key: test-secret-key
 
-
+# Translation service test configuration
+# Note: base-url is overridden by @DynamicPropertySource in integration tests
 translation:
+  base-url: http://localhost:8001
+  timeout-ms: 5000
   langid:
-    url: "http://localhost:5001/detect"
+    url: http://localhost:5001/detect
   opusmt:
-    url: "http://localhost:5001/translate"
+    url: http://localhost:5001/translate
   cache:
-    ttl: 3600 # 캐시 유효시간 (초)
+    ttl: 3600

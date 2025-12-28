@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.time.Duration
 
 plugins {
 	id("org.springframework.boot") version "3.1.3"
@@ -57,6 +58,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+	implementation("org.flywaydb:flyway-core")
 	//developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.h2database:h2")
 	runtimeOnly("org.postgresql:postgresql")
@@ -77,6 +79,14 @@ dependencies {
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
 
+	// Testcontainers for integration tests
+	testImplementation("org.testcontainers:testcontainers:1.19.0")
+	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
+	testImplementation("org.testcontainers:postgresql:1.19.0")
+
+	// MockWebServer for mocking HTTP endpoints in tests
+	testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
+
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
 }
@@ -96,6 +106,18 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+
+	// Prevent test worker JVM shutdown hang (force cleanup after timeout)
+	maxParallelForks = 1
+	forkEvery = 1
+	timeout.set(Duration.ofMinutes(5))
+
+	// Enable detailed logging for debugging worker lifecycle
+	testLogging {
+		events("started", "passed", "skipped", "failed")
+		showStandardStreams = true
+		exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+	}
 }
 
 tasks.test {
