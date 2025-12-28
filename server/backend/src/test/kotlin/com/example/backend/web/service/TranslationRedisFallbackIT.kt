@@ -56,27 +56,22 @@ class TranslationRedisFallbackIT {
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            // PostgreSQL configuration (container is guaranteed to be started by Testcontainers)
+            // ========== PostgreSQL (Dynamic - Testcontainers) ==========
+            // Override application-test.yml H2 config with Testcontainers PostgreSQL
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
             registry.add("spring.jpa.database-platform") { "org.hibernate.dialect.PostgreSQLDialect" }
-            registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
-            registry.add("spring.jpa.show-sql") { "false" }
 
-            // Redis configuration: Force Redis cache type but with WRONG host to make it unavailable
-            // This simulates a production scenario where Redis is configured but unreachable
-            registry.add("spring.cache.type") { "redis" }
+            // ========== Redis (Intentionally Misconfigured for Fallback Test) ==========
+            // Force WRONG host to simulate Redis unavailability
             registry.add("spring.data.redis.host") { "invalid-redis-host-does-not-exist" }
             registry.add("spring.data.redis.port") { "6390" }  // Wrong port
 
-            // Translation service configuration: Point to mock server (lazy initialization ensures it's started)
+            // ========== Translation Service (Dynamic - MockWebServer) ==========
+            // Point to MockWebServer (lazy initialization ensures it's started)
             registry.add("translation.base-url") { mockWebServer.url("/").toString().trimEnd('/') }
-            registry.add("translation.timeout-ms") { "5000" }
-
-            // Flyway disabled for test (using ddl-auto)
-            registry.add("spring.flyway.enabled") { "false" }
         }
     }
 
