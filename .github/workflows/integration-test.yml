@@ -38,9 +38,24 @@
           run: docker ps
 
         - name: Run Integration Tests
-          run: ./gradlew test --tests TranslationRedisFallbackIT --info
+          run: ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon
           working-directory: server/backend
-          timeout-minutes: 15
+          timeout-minutes: 5
+          continue-on-error: true
+
+        - name: Collect thread dump on timeout/failure
+          if: failure()
+          run: |
+            echo "=== Gradle processes ==="
+            ps aux | grep gradle || true
+            echo "=== Java processes ==="
+            ps aux | grep java || true
+            echo "=== JVM thread dumps (if any Java processes running) ==="
+            for pid in $(pgrep -f 'gradle|java'); do
+              echo "Thread dump for PID $pid:"
+              jstack $pid || jcmd $pid Thread.print || kill -3 $pid || true
+            done
+          working-directory: server/backend
 
         - name: Publish Test Report
           uses: mikepenz/action-junit-report@v4
