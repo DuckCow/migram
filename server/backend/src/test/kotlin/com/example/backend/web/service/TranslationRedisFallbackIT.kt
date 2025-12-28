@@ -9,6 +9,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
+import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
@@ -17,6 +18,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.concurrent.TimeUnit
 
 /**
  * Custom PostgreSQL container class to resolve Kotlin generic type issues
@@ -59,6 +61,12 @@ class TranslationRedisFallbackIT {
             .withPassword("test")
 
         @JvmStatic
+        @AfterAll
+        fun tearDown() {
+            mockWebServer.shutdown()
+        }
+
+        @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
             // ========== PostgreSQL (Dynamic - Testcontainers) ==========
@@ -94,6 +102,9 @@ class TranslationRedisFallbackIT {
 
     @Autowired
     private lateinit var boardRepository: BoardRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private lateinit var testPost: Post
 
@@ -143,14 +154,20 @@ class TranslationRedisFallbackIT {
             )
         )
 
-        // Prepare mock response for translation API
+        // Prepare mock responses for translation API
+        // Enqueue 2 responses as safety net (DB cache should prevent 2nd API call)
         val mockResponse = MockResponse()
             .setBody("""{"translatedText": "안녕하세요 세계\n\n이것은 영어로 된 테스트 게시물입니다.", "model": "opus-mt-en-ko"}""")
             .addHeader("Content-Type", "application/json")
         Companion.mockWebServer.enqueue(mockResponse)
+
+        // Safety net: If DB caching fails, 2nd request won't hang
+        // Test will fail on requestCount assertion instead
+        Companion.mockWebServer.enqueue(mockResponse)
     }
 
     @Test
+    @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Service works with DB-only caching (no Redis dependency)")
     fun testDBCache_ServiceWorksWithoutErrors() {
         // Given: Spring Cache is disabled (cache.type=none)
@@ -177,6 +194,7 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
+    @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Translation should be saved to DB cache")
     fun testDBCache_TranslationSavedToDatabase() {
         // Given: Service uses DB-only caching
@@ -199,6 +217,7 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
+    @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Translation API should be called only ONCE (second request uses DB cache)")
     fun testDBCache_ApiCalledOnlyOnce() {
         // Given: Service uses DB caching
@@ -213,6 +232,12 @@ class TranslationRedisFallbackIT {
 
         // When: Call translation service TWICE
         val firstResult = translationService.getTranslation(request)
+
+        // Force flush to DB and clear JPA 1st level cache
+        // This ensures the second call truly reads from DB, not JPA cache
+        entityManager.flush()
+        entityManager.clear()
+
         val secondResult = translationService.getTranslation(request)
 
         // Then: First call should hit API (cached = false)
@@ -228,6 +253,7 @@ class TranslationRedisFallbackIT {
     }
 
     @Test
+    @Timeout(30, unit = TimeUnit.SECONDS)
     @DisplayName("Same source and target language should return original text (no API call)")
     fun testDBCache_SameLanguageNoApiCall() {
         // Given: Request translation to same language as original
