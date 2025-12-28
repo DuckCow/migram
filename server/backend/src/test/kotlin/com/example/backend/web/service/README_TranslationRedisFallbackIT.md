@@ -10,7 +10,6 @@ Ensure that when Redis cache is configured but unreachable, the application:
 1. ✅ **Continues to function** without throwing 500 errors
 2. ✅ **Falls back to DB-only caching** (2-tier cache: Hot Redis fails → Warm DB succeeds)
 3. ✅ **Calls the Translation API only once** (subsequent requests use DB cache)
-4. ✅ **Supports version-based cache invalidation** (content updates invalidate cache)
 
 ## Test Scenarios
 
@@ -29,11 +28,7 @@ Ensure that when Redis cache is configured but unreachable, the application:
 - Second call: Returns from DB cache (cached = true)
 - **Verify:** MockWebServer received exactly 1 request
 
-### 4. Version-Based Cache Invalidation
-**When:** Post content is updated (content_version incremented)
-**Then:** New API call is triggered despite existing cache entry
-
-### 5. Same Language No-Op
+### 4. Same Language No-Op
 **When:** Source and target language are the same
 **Then:** Original text returned without API call (model = "none")
 
@@ -105,7 +100,6 @@ fun configureProperties(registry: DynamicPropertyRegistry) {
 TranslationRedisFallbackIT > Redis down → Service should fallback to DB cache PASSED
 TranslationRedisFallbackIT > Translation should be saved to DB cache PASSED
 TranslationRedisFallbackIT > Translation API should be called only ONCE PASSED
-TranslationRedisFallbackIT > Version-based cache invalidation PASSED
 TranslationRedisFallbackIT > Same source and target language PASSED
 ```
 
