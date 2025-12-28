@@ -37,32 +37,72 @@
         - name: Verify Docker is running
           run: docker ps
 
-        - name: Run Integration Tests (with soft timeout)
+        - name: Run Integration Tests (with soft timeout and worker tracking)
           run: |
-            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon || true
+            # Start test with timeout, capture all output
+            echo "=== Starting Gradle test execution ==="
+            timeout 300s ./gradlew test --tests TranslationRedisFallbackIT --info --stacktrace --no-daemon 2>&1 | tee test-output.log || true
+            echo "=== Gradle command completed (exit code: $?) ==="
           working-directory: server/backend
 
-        - name: Collect thread dump and process info
+        - name: Identify and dump test worker JVM (not Gradle daemon)
           if: always()
           run: |
-            echo "=== Gradle processes ==="
-            ps aux | grep -E 'gradle|GradleDaemon' || true
+            echo "=== Identifying Gradle Test Worker JVM ==="
+
+            # List ALL Java processes with full details
+            echo "All Java processes:"
+            ps aux | grep java | grep -v grep || true
             echo ""
-            echo "=== Java/Test Worker processes ==="
-            ps aux | grep -E 'java.*test|GradleWorker' || true
-            echo ""
-            echo "=== All JVM thread dumps ==="
-            for pid in $(pgrep -f 'java'); do
+
+            # Try to find test worker by various patterns
+            echo "=== Searching for test worker PID ==="
+
+            # Pattern 1: "Gradle Test Executor"
+            WORKER_PID=$(pgrep -f "Gradle Test Executor" | head -1)
+            if [ -n "$WORKER_PID" ]; then
+              echo "Found test worker by 'Gradle Test Executor': PID $WORKER_PID"
+            fi
+
+            # Pattern 2: GradleWorkerMain
+            if [ -z "$WORKER_PID" ]; then
+              WORKER_PID=$(pgrep -f "GradleWorkerMain" | head -1)
+              if [ -n "$WORKER_PID" ]; then
+                echo "Found test worker by 'GradleWorkerMain': PID $WORKER_PID"
+              fi
+            fi
+
+            # Pattern 3: Search test output for worker PID
+            if [ -z "$WORKER_PID" ] && [ -f test-output.log ]; then
+              echo "Searching test output for worker PID..."
+              grep -oP 'Gradle Test Executor \d+ PID: \K\d+' test-output.log | head -1 || true
+            fi
+
+            # Dump worker JVM if found
+            if [ -n "$WORKER_PID" ]; then
               echo "======================================"
-              echo "Thread dump for Java PID $pid:"
-              echo "Process info: $(ps -p $pid -o pid,ppid,comm,args || true)"
+              echo "TEST WORKER JVM THREAD DUMP (PID: $WORKER_PID)"
+              echo "======================================"
+              ps -p $WORKER_PID -o pid,ppid,comm,args || true
               echo "--------------------------------------"
-              jstack -l $pid 2>&1 || jcmd $pid Thread.print 2>&1 || kill -3 $pid 2>&1 || echo "Failed to get thread dump for $pid"
+              jstack -l $WORKER_PID 2>&1 || jcmd $WORKER_PID Thread.print 2>&1 || true
               echo ""
-            done
+              echo "=== Analyzing non-daemon threads ==="
+              jstack $WORKER_PID 2>&1 | grep -A 5 "daemon=false" || echo "No non-daemon threads found"
+            else
+              echo "⚠️  Test worker JVM not found - it may have already exited"
+              echo "Dumping ALL Java processes instead:"
+              for pid in $(pgrep -f java); do
+                echo "--- PID $pid ---"
+                ps -p $pid -o pid,ppid,comm,args || true
+                jstack -l $pid 2>&1 | head -50 || true
+              done
+            fi
+
             echo ""
-            echo "=== Non-daemon thread analysis ==="
-            echo "Looking for threads preventing JVM shutdown (Lettuce, Netty, HikariCP, OkHttp)..."
+            echo "=== Last resort: Force kill any hanging test workers ==="
+            pkill -9 -f "Gradle Test Executor" || echo "No test executor to kill"
+            pkill -9 -f "GradleWorkerMain" || echo "No worker main to kill"
           working-directory: server/backend
 
         - name: Publish Test Report
