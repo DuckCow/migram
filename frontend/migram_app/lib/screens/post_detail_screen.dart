@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:migram_app/l10n/app_localizations.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/post_model.dart';
 import '../models/comment_model.dart';

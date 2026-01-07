@@ -10,7 +10,7 @@ import 'package:migram_app/services/chat_service.dart';
 import 'package:app_links/app_links.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:async';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:migram_app/l10n/app_localizations.dart';
 
 Future<void> main() async {
   print('=== App starting ===');
