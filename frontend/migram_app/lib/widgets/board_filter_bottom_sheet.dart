@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:migram_app/l10n/app_localizations.dart';
 import '../models/board_model.dart';
 import '../services/board_service.dart';
 import '../utils/error_handler.dart';
