@@ -3,6 +3,7 @@ package com.example.backend.web.service
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
@@ -22,6 +23,7 @@ import java.util.*
     classes = [S3Service::class, com.example.backend.web.config.TestAwsConfig::class])
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
+@EnabledIfEnvironmentVariable(named = "S3_ACCESS_KEY", matches = ".+")
 class S3ServiceIntegrationTest {
     @Autowired
     private lateinit var s3Service: S3Service
