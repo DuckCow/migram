@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:migram_app/config.dart';
 
 class DioService {
   static final DioService _instance = DioService._internal();
@@ -9,11 +9,8 @@ class DioService {
   final Dio _dio = Dio();
   bool _isInitialized = false;
 
-  // iOS 시뮬레이터/기기는 Mac의 로컬 IP 사용
-  // Android 에뮬레이터는 10.0.2.2 사용 (호스트 머신 접근용)
-  final String baseUrl = Platform.isAndroid
-      ? 'http://10.0.2.2:8080'
-      : 'http://192.168.219.118:8080'; // Mac 로컬 IP
+  // Base URL configured in lib/config.dart
+  final String baseUrl = AppConfig.baseUrl;
 
   DioService._internal();
 
