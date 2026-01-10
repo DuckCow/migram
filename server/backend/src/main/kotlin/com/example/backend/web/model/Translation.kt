@@ -1,12 +1,22 @@
 package com.example.backend.web.model
 
 /**
+ * Translation type: FULL (complete content) or PREVIEW (truncated for feed)
+ */
+enum class TranslationType {
+    FULL,    // Full title + body (for post detail)
+    PREVIEW  // Title + truncated body (for feed)
+}
+
+/**
  * Request DTO for translation
  */
 data class TranslationRequestDTO(
     val contentType: ContentType,
     val contentId: Long,
-    val targetLang: String
+    val targetLang: String,
+    val sourceText: String? = null,  // Optional custom text (for preview)
+    val translationType: TranslationType = TranslationType.FULL
 )
 
 /**
@@ -19,7 +29,8 @@ data class TranslationResponseDTO(
     val targetLang: String,
     val translatedText: String,
     val model: String,
-    val cached: Boolean
+    val cached: Boolean,
+    val skipped: Boolean = false  // True if source == target language (no translation needed)
 )
 
 /**

@@ -31,6 +31,18 @@ class _PostCardState extends State<PostCard> {
   bool _isTranslating = false;
   String? _translatedText; // Combined title + content
 
+  /// Compute preview text for translation (title + truncated content)
+  /// This matches the display truncation to optimize translation costs
+  String _getPreviewText() {
+    final title = widget.post.title;
+    final content = widget.post.content;
+    // Truncate content to ~200 chars to match feed display
+    final preview = content.length > 200
+        ? '${content.substring(0, 200)}...'
+        : content;
+    return '$title\n\n$preview';
+  }
+
   Future<void> _toggleTranslation() async {
     if (_showTranslation) {
       // Hide translation - switch back to original
@@ -49,18 +61,24 @@ class _PostCardState extends State<PostCard> {
       return;
     }
 
+    // Skip if same language
+    final targetLang = Localizations.localeOf(context).languageCode;
+    if (widget.post.originalLang == targetLang) {
+      return;
+    }
+
     // Need to fetch translation
     setState(() {
       _isTranslating = true;
     });
 
     try {
-      final locale = Localizations.localeOf(context).languageCode;
-
       final response = await _translationService.getTranslation(
         contentType: 'POST',
         contentId: widget.post.id,
-        targetLang: locale,
+        targetLang: targetLang,
+        sourceText: _getPreviewText(),  // Send preview text for cost optimization
+        translationType: 'PREVIEW',     // Use PREVIEW type for feed
       );
 
       if (mounted) {
