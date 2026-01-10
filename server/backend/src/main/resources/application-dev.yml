@@ -1,5 +1,8 @@
 # Development Environment Configuration
 
+server:
+  forward-headers-strategy: framework  # Trust X-Forwarded-* headers (for ngrok/proxies)
+
 jwt:
   secret: ${JWT_SECRET_KEY:dev-local-secret}
 
