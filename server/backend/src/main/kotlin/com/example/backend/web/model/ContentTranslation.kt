@@ -7,7 +7,7 @@ import java.time.Instant
 @Table(
     name = "content_translation",
     uniqueConstraints = [
-        UniqueConstraint(columnNames = ["content_type", "content_id", "target_lang"])
+        UniqueConstraint(columnNames = ["content_type", "content_id", "target_lang", "translation_type"])
     ]
 )
 data class ContentTranslation(
@@ -24,6 +24,13 @@ data class ContentTranslation(
 
     @Column(name = "target_lang", nullable = false, length = 10)
     val targetLang: String,
+
+    @Column(name = "translation_type", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    val translationType: TranslationType = TranslationType.FULL,
+
+    @Column(name = "source_text_hash", nullable = false, length = 64)
+    val sourceTextHash: String,
 
     @Column(name = "translated_text", nullable = false, columnDefinition = "TEXT")
     val translatedText: String,

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Mono
+import java.security.MessageDigest
 import java.time.Duration
 
 @Service
@@ -32,37 +33,19 @@ class TranslationService(
     /**
      * Get translation for content (post or comment)
      * Uses database cache if available, otherwise calls external translation service
+     * Supports FULL and PREVIEW translation types with source text hash validation
      */
     @Transactional
     fun getTranslation(request: TranslationRequestDTO): TranslationResponseDTO {
-        val (contentType, contentId, targetLang) = request
+        val (contentType, contentId, targetLang) = Triple(request.contentType, request.contentId, request.targetLang)
+        val translationType = request.translationType
 
-        // 1. Check cache first
-        val cachedTranslation = contentTranslationRepository
-            .findByContentTypeAndContentIdAndTargetLang(contentType, contentId, targetLang)
+        // 1. Get original content (custom sourceText or from DB)
+        val (originalText, originalLang) = getOriginalContent(request)
 
-        if (cachedTranslation.isPresent) {
-            logger.info("Translation cache HIT: $contentType#$contentId -> $targetLang")
-            val cached = cachedTranslation.get()
-            return TranslationResponseDTO(
-                contentType = cached.contentType,
-                contentId = cached.contentId,
-                sourceLang = getOriginalLang(contentType, contentId),
-                targetLang = cached.targetLang,
-                translatedText = cached.translatedText,
-                model = cached.model,
-                cached = true
-            )
-        }
-
-        logger.info("Translation cache MISS: $contentType#$contentId -> $targetLang")
-
-        // 2. Load original content
-        val (originalText, originalLang) = getOriginalContent(contentType, contentId)
-
-        // 3. If source and target are the same, return original as cached
+        // 2. Skip if source == target language
         if (originalLang == targetLang) {
-            logger.info("Source and target language are the same ($originalLang), returning original")
+            logger.info("Source and target language are the same ($originalLang), skipping translation")
             return TranslationResponseDTO(
                 contentType = contentType,
                 contentId = contentId,
@@ -70,29 +53,64 @@ class TranslationService(
                 targetLang = targetLang,
                 translatedText = originalText,
                 model = "none",
-                cached = true
+                cached = true,
+                skipped = true
             )
         }
 
-        // 4. Call external translation service
+        // 3. Compute hash of source text for cache validation
+        val sourceHash = computeSha256(originalText)
+
+        // 4. Check cache with translation type
+        val cachedTranslation = contentTranslationRepository
+            .findByContentTypeAndContentIdAndTargetLangAndTranslationType(
+                contentType, contentId, targetLang, translationType
+            )
+
+        if (cachedTranslation.isPresent) {
+            val cached = cachedTranslation.get()
+            // Validate hash - if source text changed, invalidate cache
+            if (cached.sourceTextHash == sourceHash) {
+                logger.info("Translation cache HIT: $contentType#$contentId ($translationType) -> $targetLang")
+                return TranslationResponseDTO(
+                    contentType = cached.contentType,
+                    contentId = cached.contentId,
+                    sourceLang = originalLang,
+                    targetLang = cached.targetLang,
+                    translatedText = cached.translatedText,
+                    model = cached.model,
+                    cached = true
+                )
+            } else {
+                // Hash mismatch - source text was edited, delete stale cache
+                logger.info("Translation cache STALE (hash mismatch): $contentType#$contentId ($translationType)")
+                contentTranslationRepository.delete(cached)
+            }
+        }
+
+        logger.info("Translation cache MISS: $contentType#$contentId ($translationType) -> $targetLang")
+
+        // 5. Call external translation service
         val (translatedText, model) = callExternalTranslationService(
             text = originalText,
             sourceLang = originalLang,
             targetLang = targetLang
         )
 
-        // 5. Save to cache (with concurrency handling)
+        // 6. Save to cache (with concurrency handling)
         try {
-            val savedTranslation = contentTranslationRepository.save(
+            contentTranslationRepository.save(
                 ContentTranslation(
                     contentType = contentType,
                     contentId = contentId,
                     targetLang = targetLang,
+                    translationType = translationType,
+                    sourceTextHash = sourceHash,
                     translatedText = translatedText,
                     model = model
                 )
             )
-            logger.info("Translation saved to cache: $contentType#$contentId -> $targetLang")
+            logger.info("Translation saved to cache: $contentType#$contentId ($translationType) -> $targetLang")
 
             return TranslationResponseDTO(
                 contentType = contentType,
@@ -105,9 +123,11 @@ class TranslationService(
             )
         } catch (e: DataIntegrityViolationException) {
             // Handle race condition: another request already saved the same translation
-            logger.warn("Race condition detected, re-reading from cache: $contentType#$contentId -> $targetLang")
+            logger.warn("Race condition detected, re-reading from cache: $contentType#$contentId ($translationType)")
             val rereadTranslation = contentTranslationRepository
-                .findByContentTypeAndContentIdAndTargetLang(contentType, contentId, targetLang)
+                .findByContentTypeAndContentIdAndTargetLangAndTranslationType(
+                    contentType, contentId, targetLang, translationType
+                )
                 .orElseThrow { IllegalStateException("Translation should exist after conflict") }
 
             return TranslationResponseDTO(
@@ -123,20 +143,58 @@ class TranslationService(
     }
 
     /**
-     * Get original content and language
+     * Compute SHA-256 hash of text for cache validation
      */
-    private fun getOriginalContent(contentType: ContentType, contentId: Long): Pair<String, String> {
-        return when (contentType) {
+    private fun computeSha256(text: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(text.toByteArray(Charsets.UTF_8))
+        return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Get original content and language
+     * Supports custom sourceText (for preview) or loads from DB
+     */
+    private fun getOriginalContent(request: TranslationRequestDTO): Pair<String, String> {
+        // If custom sourceText provided (preview from client), use it
+        if (request.sourceText != null) {
+            val originalLang = when (request.contentType) {
+                ContentType.POST -> {
+                    postRepository.findById(request.contentId)
+                        .orElseThrow { IllegalArgumentException("Post not found: ${request.contentId}") }
+                        .originalLang
+                }
+                ContentType.COMMENT -> {
+                    commentRepository.findById(request.contentId)
+                        .orElseThrow { IllegalArgumentException("Comment not found: ${request.contentId}") }
+                        .originalLang
+                }
+            }
+            return Pair(request.sourceText, originalLang)
+        }
+
+        // Otherwise load from DB based on translation type
+        return when (request.contentType) {
             ContentType.POST -> {
-                val post = postRepository.findById(contentId)
-                    .orElseThrow { IllegalArgumentException("Post not found: $contentId") }
-                // Combine title and content for posts
-                val fullText = "${post.title}\n\n${post.content}"
-                Pair(fullText, post.originalLang)
+                val post = postRepository.findById(request.contentId)
+                    .orElseThrow { IllegalArgumentException("Post not found: ${request.contentId}") }
+                val text = when (request.translationType) {
+                    TranslationType.PREVIEW -> {
+                        // Truncate content for preview (max 200 chars)
+                        val preview = if (post.content.length > 200) {
+                            post.content.take(200) + "..."
+                        } else {
+                            post.content
+                        }
+                        "${post.title}\n\n$preview"
+                    }
+                    TranslationType.FULL -> "${post.title}\n\n${post.content}"
+                }
+                Pair(text, post.originalLang)
             }
             ContentType.COMMENT -> {
-                val comment = commentRepository.findById(contentId)
-                    .orElseThrow { IllegalArgumentException("Comment not found: $contentId") }
+                val comment = commentRepository.findById(request.contentId)
+                    .orElseThrow { IllegalArgumentException("Comment not found: ${request.contentId}") }
                 Pair(comment.content, comment.originalLang)
             }
         }

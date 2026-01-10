@@ -232,6 +232,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return _currentUserId != null && _post != null && !_post!.isAnonymous && _currentUserId == _post!.user?.id;
   }
 
+  /// Parse translated text into title and content
+  /// Backend returns "Title\n\nContent" format
+  (String, String) _parsePostTranslation() {
+    if (_translatedPostText == null || !_showPostTranslation) {
+      return (_post!.title, _post!.content);
+    }
+
+    final parts = _translatedPostText!.split('\n\n');
+    if (parts.length < 2) {
+      return (_translatedPostText!, _post!.content);
+    }
+
+    final title = parts[0];
+    final content = parts.sublist(1).join('\n\n');
+    return (title, content);
+  }
+
   Future<void> _togglePostTranslation() async {
     if (_showPostTranslation) {
       // Hide translation - switch back to original
@@ -250,18 +267,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       return;
     }
 
+    // Skip if same language
+    final targetLang = Localizations.localeOf(context).languageCode;
+    if (_post!.originalLang == targetLang) {
+      return;
+    }
+
     // Need to fetch translation
     setState(() {
       _isTranslatingPost = true;
     });
 
     try {
-      final locale = Localizations.localeOf(context).languageCode;
-
       final response = await _translationService.getTranslation(
         contentType: 'POST',
         contentId: widget.postId,
-        targetLang: locale,
+        targetLang: targetLang,
+        translationType: 'FULL',  // Full body translation for detail view
       );
 
       if (mounted) {
@@ -446,9 +468,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Title
+          // Title - REPLACE mode (show original OR translated)
           Text(
-            _post!.title,
+            _showPostTranslation && _translatedPostText != null
+                ? _parsePostTranslation().$1  // Translated title
+                : _post!.title,               // Original title
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -458,8 +482,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           // Content - REPLACE mode (show original OR translated)
           Text(
             _showPostTranslation && _translatedPostText != null
-                ? _translatedPostText!
-                : _post!.content,
+                ? _parsePostTranslation().$2  // Translated content
+                : _post!.content,             // Original content
             style: const TextStyle(fontSize: 16),
           ),
           // Translation toggle button (only if language differs)
