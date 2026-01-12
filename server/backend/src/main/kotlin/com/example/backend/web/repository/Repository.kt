@@ -15,6 +15,34 @@ interface CommentRepository : JpaRepository<com.example.backend.web.model.Commen
 
     // 사용자의 댓글 개수
     fun countByUserId(userId: Long): Long
+
+    // ==================== Visibility-filtered queries ====================
+
+    // Top-level comments with visibility filter
+    @Query("""
+        SELECT c FROM Comment c
+        WHERE c.post = :post
+        AND c.parentComment IS NULL
+        AND c.visibility IN :visibilities
+        ORDER BY c.createdAt DESC
+    """)
+    fun findByPostAndParentCommentIsNullAndVisibilityIn(
+        post: Post,
+        visibilities: List<ContentVisibility>,
+        pageable: Pageable
+    ): Page<Comment>
+
+    // Replies with visibility filter
+    @Query("""
+        SELECT c FROM Comment c
+        WHERE c.parentComment = :parent
+        AND c.visibility IN :visibilities
+        ORDER BY c.createdAt ASC
+    """)
+    fun findByParentCommentAndVisibilityIn(
+        parent: Comment,
+        visibilities: List<ContentVisibility>
+    ): List<Comment>
 }
 
 interface BoardRepository : JpaRepository<com.example.backend.web.model.Board, Long> {
@@ -72,6 +100,33 @@ interface PostRepository : JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p WHERE p.board IN :boards")
     fun searchByBoards(boards: List<com.example.backend.web.model.Board>, pageable: Pageable): Page<Post>
 
+    // ==================== Visibility-filtered queries ====================
+
+    // Feed query: PUBLIC first, then LIMITED (de-ranked)
+    @Query("""
+        SELECT p FROM Post p
+        WHERE p.board = :board
+        AND p.visibility IN :visibilities
+        ORDER BY
+            CASE p.visibility
+                WHEN 'PUBLIC' THEN 0
+                WHEN 'LIMITED' THEN 1
+                ELSE 2
+            END,
+            p.createdAt DESC
+    """)
+    fun findByBoardAndVisibilityInOrderByVisibilityAndCreatedAt(
+        board: Board,
+        visibilities: List<ContentVisibility>,
+        pageable: Pageable
+    ): Page<Post>
+
+    // User's own posts (can see HIDDEN but not others' HIDDEN)
+    fun findByUserIdAndVisibilityIn(userId: Long, visibilities: List<ContentVisibility>, pageable: Pageable): Page<Post>
+
+    // Admin: find all posts regardless of visibility
+    fun findByBoardOrderByCreatedAtDesc(board: Board, pageable: Pageable): Page<Post>
+
 }
 
 
@@ -125,6 +180,48 @@ interface LikeRepository : JpaRepository<Like, Long> {
 interface AuthorizationCodeRepository : JpaRepository<AuthorizationCode, Long> {
     fun findByCode(code: String): AuthorizationCode?
     fun deleteByExpiresAtBefore(expiresAt: java.time.LocalDateTime)
+}
+
+// ==================== Moderation Repositories ====================
+
+interface ReportRepository : JpaRepository<Report, Long> {
+    // Find reports by status (for admin queue)
+    fun findByStatus(status: ReportStatus, pageable: Pageable): Page<Report>
+
+    // Find reports by content
+    fun findByPost(post: Post): List<Report>
+    fun findByComment(comment: Comment): List<Report>
+
+    // Find pending reports for specific content
+    fun findByPostAndStatus(post: Post, status: ReportStatus): List<Report>
+    fun findByCommentAndStatus(comment: Comment, status: ReportStatus): List<Report>
+
+    // Check if user already reported this content
+    fun existsByReporterAndPost(reporter: User, post: Post): Boolean
+    fun existsByReporterAndComment(reporter: User, comment: Comment): Boolean
+
+    // Count pending reports
+    fun countByStatus(status: ReportStatus): Long
+
+    // Find reports by content type and status
+    fun findByContentTypeAndStatus(contentType: ContentType, status: ReportStatus, pageable: Pageable): Page<Report>
+}
+
+interface ModerationActionRepository : JpaRepository<ModerationAction, Long> {
+    // Find actions for specific content (audit trail)
+    fun findByContentTypeAndContentIdOrderByCreatedAtDesc(
+        contentType: ContentType,
+        contentId: Long
+    ): List<ModerationAction>
+
+    // Find actions by admin
+    fun findByAdminOrderByCreatedAtDesc(admin: User, pageable: Pageable): Page<ModerationAction>
+
+    // Find recent actions
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<ModerationAction>
+
+    // Find actions linked to a report
+    fun findByReport(report: Report): ModerationAction?
 }
 
 /*

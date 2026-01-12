@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.GetMapping
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 class SecurityConfig {
 
 
@@ -130,6 +132,7 @@ class SecurityConfig {
                         AntPathRequestMatcher("/api/user/**"), // 사용자 정보 수정은 인증 필요
                         AntPathRequestMatcher("/users/me/**"), // 사용자 개인 정보 수정은 인증 필요
                         AntPathRequestMatcher("/api/chat/**"), // 채팅 기능은 인증 필요
+                        AntPathRequestMatcher("/api/reports/**"), // 신고 기능은 인증 필요
                         AntPathRequestMatcher("/posts/**", "POST"), // 게시글 생성 및 투표는 인증 필요
                         AntPathRequestMatcher("/posts/**", "PUT"), // 게시글 수정은 인증 필요
                         AntPathRequestMatcher("/posts/**", "DELETE"), // 게시글 삭제는 인증 필요
@@ -137,6 +140,10 @@ class SecurityConfig {
                         AntPathRequestMatcher("/comments/**", "PUT"), // 댓글 수정은 인증 필요
                         AntPathRequestMatcher("/comments/**", "DELETE") // 댓글 삭제는 인증 필요
                     ).authenticated()
+                    // Admin endpoints - requires ADMIN role (enforced via @PreAuthorize)
+                    .requestMatchers(
+                        AntPathRequestMatcher("/api/admin/**")
+                    ).hasRole("ADMIN")
                     .anyRequest().permitAll()
             }
             .headers { headers ->
