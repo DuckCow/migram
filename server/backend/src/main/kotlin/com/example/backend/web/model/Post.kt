@@ -34,6 +34,10 @@ data class Post(
     @Column(name = "original_lang", nullable = false, length = 10)
     val originalLang: String = "en",
 
+    @Column(name = "visibility", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    val visibility: ContentVisibility = ContentVisibility.PUBLIC,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     val user: User,
