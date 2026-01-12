@@ -283,7 +283,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         contentType: 'POST',
         contentId: widget.postId,
         targetLang: targetLang,
-        translationType: 'FULL',  // Full body translation for detail view
       );
 
       if (mounted) {
