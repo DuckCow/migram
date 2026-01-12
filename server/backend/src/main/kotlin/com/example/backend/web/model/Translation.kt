@@ -1,22 +1,12 @@
 package com.example.backend.web.model
 
 /**
- * Translation type: FULL (complete content) or PREVIEW (truncated for feed)
- */
-enum class TranslationType {
-    FULL,    // Full title + body (for post detail)
-    PREVIEW  // Title + truncated body (for feed)
-}
-
-/**
  * Request DTO for translation
  */
 data class TranslationRequestDTO(
     val contentType: ContentType,
     val contentId: Long,
-    val targetLang: String,
-    val sourceText: String? = null,  // Optional custom text (for preview)
-    val translationType: TranslationType = TranslationType.FULL
+    val targetLang: String
 )
 
 /**
@@ -30,11 +20,11 @@ data class TranslationResponseDTO(
     val translatedText: String,
     val model: String,
     val cached: Boolean,
-    val skipped: Boolean = false  // True if source == target language (no translation needed)
+    val skipped: Boolean = false
 )
 
 /**
- * Request to external translation service (FastAPI)
+ * Request to external translation service
  */
 data class ExternalTranslationRequest(
     val text: String,
@@ -44,9 +34,9 @@ data class ExternalTranslationRequest(
 )
 
 /**
- * Response from external translation service (FastAPI)
+ * Response from external translation service
  */
 data class ExternalTranslationResponse(
     val translatedText: String,
-    val model: String
+    val model: String? = null
 )

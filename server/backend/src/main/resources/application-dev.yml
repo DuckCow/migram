@@ -53,3 +53,8 @@ storage:
   type: local  # Use local file storage in development
   local:
     upload-dir: ./uploads  # Local directory for file uploads
+
+# Translation Service Configuration
+translation:
+  base-url: http://localhost:5001  # Flask translation service
+  timeout-ms: 30000  # 30 seconds for model loading
