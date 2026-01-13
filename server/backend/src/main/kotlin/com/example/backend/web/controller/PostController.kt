@@ -2,6 +2,8 @@ package com.example.backend.web.controller
 
 import com.example.backend.web.model.*
 import com.example.backend.web.service.PostService
+import com.example.backend.web.service.TrendingService
+import com.example.backend.web.service.TrendingPeriod
 import com.example.backend.web.service.VoteService
 import com.example.backend.web.service.VoteCounts
 import com.example.backend.web.service.VoteResult
@@ -21,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile
 class PostController(
     private val postService: PostService,
     private val voteService: VoteService,
+    private val trendingService: TrendingService,
     private val securityUtils: SecurityUtils
 ) {
 
@@ -46,6 +49,50 @@ class PostController(
             }
 
         return postService.getFeed(boardIdList, pageable)
+    }
+
+    /**
+     * Get trending posts (global)
+     * Query params:
+     * - period: LAST_24H, LAST_7D, LAST_30D (default: LAST_24H)
+     * - page, size: pagination
+     */
+    @GetMapping("/trending")
+    fun getTrendingPosts(
+        @RequestParam(defaultValue = "LAST_24H") period: TrendingPeriod,
+        @PageableDefault(size = 20) pageable: Pageable
+    ): PageDTO<PostResponseDTO> {
+        return trendingService.getTrendingPosts(period, pageable)
+    }
+
+    /**
+     * Get trending posts for specific board
+     * Query params:
+     * - period: LAST_24H, LAST_7D, LAST_30D (default: LAST_24H)
+     * - page, size: pagination
+     */
+    @GetMapping("/trending/board/{boardId}")
+    fun getTrendingPostsByBoard(
+        @PathVariable boardId: Long,
+        @RequestParam(defaultValue = "LAST_24H") period: TrendingPeriod,
+        @PageableDefault(size = 20) pageable: Pageable
+    ): PageDTO<PostResponseDTO> {
+        return trendingService.getTrendingPostsByBoard(boardId, period, pageable)
+    }
+
+    /**
+     * Get trending posts for specific country
+     * Query params:
+     * - period: LAST_24H, LAST_7D, LAST_30D (default: LAST_24H)
+     * - page, size: pagination
+     */
+    @GetMapping("/trending/country/{countryCode}")
+    fun getTrendingPostsByCountry(
+        @PathVariable countryCode: String,
+        @RequestParam(defaultValue = "LAST_24H") period: TrendingPeriod,
+        @PageableDefault(size = 20) pageable: Pageable
+    ): PageDTO<PostResponseDTO> {
+        return trendingService.getTrendingPostsByCountry(countryCode.uppercase(), period, pageable)
     }
 
     @GetMapping
