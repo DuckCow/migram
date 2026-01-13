@@ -9,7 +9,7 @@ jwt:
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate  # Flyway handles all DDL
+      ddl-auto: update  # Let Hibernate manage schema in dev (Flyway disabled for H2)
     show-sql: true  # Show SQL queries in console
     properties:
       hibernate:
@@ -17,8 +17,7 @@ spring:
     defer-datasource-initialization: false  # Allow data.sql to run after schema creation
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true   # 기존 file DB 잡아줄 때 유용(선택이지만 강추)
+    enabled: false  # Disabled in dev - H2 doesn't support PostgreSQL FTS features
 
   sql:
     init:

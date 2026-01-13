@@ -77,7 +77,8 @@ data class PostResponseDTO(
     val createdAt: String,
     val createdBy: String,
     val modifiedAt: String,
-    val hotScore: Double? = null
+    val hotScore: Double? = null,
+    val trendingScore: Double? = null
 )
 
 /**
