@@ -4,6 +4,74 @@ import com.example.backend.web.repository.VoteRepository
 import com.example.backend.web.repository.UserRepository
 import java.time.LocalDateTime
 
+/**
+ * Batch convert posts to DTOs (solves N+1 problem)
+ *
+ * Instead of N queries for vote counts (2 per post), this makes:
+ * - 1 query for all vote counts
+ * - 1 query for current user's votes (if logged in)
+ *
+ * Performance: O(N) queries → O(1) queries
+ */
+fun List<Post>.toResponseDTOs(
+    voteRepository: VoteRepository,
+    currentUserId: Long?,
+    userRepository: UserRepository
+): List<PostResponseDTO> {
+    if (this.isEmpty()) return emptyList()
+
+    val postIds = this.map { it.id }
+
+    // Single query for all vote counts
+    // Result format: [[postId, voteType, count], ...]
+    val voteCounts = voteRepository.countVotesByPostIds(postIds)
+        .groupBy { it[0] as Long }
+        .mapValues { (_, rows) ->
+            val upvotes = rows.find { it[1] == VoteType.UP }?.get(2) as? Long ?: 0L
+            val downvotes = rows.find { it[1] == VoteType.DOWN }?.get(2) as? Long ?: 0L
+            upvotes to downvotes
+        }
+
+    // Single query for current user's votes (if logged in)
+    // Result format: [[postId, voteType], ...]
+    val userVotes = if (currentUserId != null) {
+        val user = userRepository.findById(currentUserId).orElse(null)
+        user?.let {
+            voteRepository.findUserVotesByPostIds(it, postIds)
+                .associate { row -> (row[0] as Long) to (row[1] as VoteType) }
+        } ?: emptyMap()
+    } else emptyMap()
+
+    // Convert to DTOs with pre-fetched data
+    return this.map { post ->
+        val (upvotes, downvotes) = voteCounts[post.id] ?: (0L to 0L)
+        PostResponseDTO(
+            id = post.id,
+            title = post.title,
+            content = post.content,
+            imageUrl = post.mediaUrl,
+            boardId = post.board.id,
+            boardName = post.board.name,
+            isAnonymous = post.isAnonymous,
+            originalLang = post.originalLang,
+            userDTO = if (post.isAnonymous) null else post.user.toDTO(),
+            upvotes = upvotes,
+            downvotes = downvotes,
+            netVotes = upvotes - downvotes,
+            currentUserVote = userVotes[post.id],
+            commentCount = post.comments.size.toLong(),
+            createdAt = post.createdAt.toString(),
+            createdBy = post.createdBy ?: "",
+            modifiedAt = (post.modifiedAt ?: LocalDateTime.now()).toString()
+        )
+    }
+}
+
+/**
+ * Single post conversion (N+1 problem - use batch version when possible)
+ *
+ * @deprecated Use List<Post>.toResponseDTOs() for multiple posts
+ */
 fun Post.toResponseDTO(
     voteRepository: VoteRepository,
     currentUserId: Long?,
