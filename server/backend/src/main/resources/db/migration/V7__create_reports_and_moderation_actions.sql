@@ -29,8 +29,8 @@ CREATE TABLE report (
 -- Indexes for reports
 CREATE INDEX idx_report_status ON report(status);
 CREATE INDEX idx_report_content_type ON report(content_type);
-CREATE INDEX idx_report_post ON report(post_id) WHERE post_id IS NOT NULL;
-CREATE INDEX idx_report_comment ON report(comment_id) WHERE comment_id IS NOT NULL;
+CREATE INDEX idx_report_post ON report(post_id);
+CREATE INDEX idx_report_comment ON report(comment_id);
 CREATE INDEX idx_report_created_at ON report(created_at DESC);
 
 -- Moderation actions audit log (append-only, immutable)

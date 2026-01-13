@@ -1,12 +1,22 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.Duration
 
+
+
 plugins {
 	id("org.springframework.boot") version "3.1.3"
 	id("io.spring.dependency-management") version "1.1.3"
 	kotlin("jvm") version "1.8.22"
 	kotlin("plugin.spring") version "1.8.22"
 	kotlin("plugin.jpa") version "1.8.22"
+}
+
+extra["testcontainers.version"] = "1.20.4"
+
+dependencyManagement {
+	imports {
+		mavenBom("org.testcontainers:testcontainers-bom:${property("testcontainers.version")}")
+	}
 }
 
 group = "com.example"
@@ -80,9 +90,12 @@ dependencies {
 	testImplementation("org.springframework.security:spring-security-test")
 
 	// Testcontainers for integration tests
-	testImplementation("org.testcontainers:testcontainers:1.19.0")
-	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
-	testImplementation("org.testcontainers:postgresql:1.19.0")
+	// ✅ Testcontainers BOM (버전은 여기서만 관리)
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
+
+	// Redis 쓰면 이것도 추가
+	// testImplementation("org.testcontainers:redis")
 
 	// MockWebServer for mocking HTTP endpoints in tests
 	testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
@@ -106,6 +119,10 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+
+
+	systemProperty("api.version", "1.52")
+
 
 	// Prevent test worker JVM shutdown hang (force cleanup after timeout)
 	maxParallelForks = 1

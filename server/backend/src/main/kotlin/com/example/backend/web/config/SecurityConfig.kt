@@ -108,6 +108,7 @@ class SecurityConfig {
     @Profile("!test") // 프로덕션 환경용 SecurityFilterChain
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
+            .cors { } // Enable CORS with CorsConfigurationSource bean
             .csrf { it.disable() }
             .authorizeHttpRequests { authorize ->
                 authorize
@@ -117,6 +118,8 @@ class SecurityConfig {
                         AntPathRequestMatcher("/login/**"),
                         AntPathRequestMatcher("/h2-console/**"),
                         AntPathRequestMatcher("/auth/token"), // 토큰 교환은 인증 불필요
+                        AntPathRequestMatcher("/auth/dev-token"), // Dev 토큰 (dev profile only)
+                        AntPathRequestMatcher("/auth/dev-admin"), // Dev admin 생성 (dev profile only)
                         AntPathRequestMatcher("/api/countries"), // 국가 목록은 인증 불필요
                         AntPathRequestMatcher("/posts/feed", "GET"), // Feed는 읽기 전용이므로 인증 불필요
                         AntPathRequestMatcher("/posts/*", "GET"), // 게시글 읽기는 인증 불필요
