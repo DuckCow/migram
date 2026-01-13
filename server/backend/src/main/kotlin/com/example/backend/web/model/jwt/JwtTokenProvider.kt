@@ -72,4 +72,16 @@ class JwtTokenProvider {
             .payload
             .subject
     }
+
+    /**
+     * Generate access token from email directly (for dev/testing purposes)
+     */
+    fun generateAccessTokenForEmail(email: String): String {
+        return Jwts.builder()
+            .subject(email)
+            .issuedAt(Date())
+            .expiration(Date(System.currentTimeMillis() + accessTokenValidityInMs))
+            .signWith(secretKey)
+            .compact()
+    }
 }

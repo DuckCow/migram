@@ -2,7 +2,11 @@
 server/.DS_Store
 server/.env
 
+# IntelliJ IDEA
+.idea/
+server/.idea/
 
 # H2 file-based database
 server/backend/data/
 server/backend/uploads/
+server/data/
