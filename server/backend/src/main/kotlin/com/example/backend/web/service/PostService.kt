@@ -28,19 +28,20 @@ class PostService(
     private val voteRepository: VoteRepository,
     private val securityUtils: SecurityUtils,
     private val fileStorageService: FileStorageService,
-    private val hotAlgorithmService: HotAlgorithmService
+    private val hotAlgorithmService: HotAlgorithmService,
+    private val personalizedFeedService: PersonalizedFeedService
 ) {
 
     /**
-     * Get feed with Hot algorithm sorting
+     * Get feed - personalized for logged-in users, hot algorithm for anonymous
      * Optionally filter by multiple boards
      *
-     * Caching disabled due to Redis serialization issues with complex DTOs
+     * Personalized feed boosting:
+     * - Follow relationships: 0.5x boost
+     * - Current country boards: 0.3x boost
+     * - Origin country boards: 0.2x boost
+     * - Base hot score: Reddit-style algorithm
      */
-    // @Cacheable(
-    //     value = [CacheConfig.FEED_CACHE],
-    //     key = "(#boardIds != null ? #boardIds.toString() : 'all') + '-page-' + #pageable.pageNumber + '-size-' + #pageable.pageSize"
-    // )
     fun getFeed(boardIds: List<Long>?, pageable: Pageable): PageDTO<PostResponseDTO> {
         val currentUserId = try {
             securityUtils.getCurrentUserId()
@@ -48,6 +49,20 @@ class PostService(
             null  // Anonymous user
         }
 
+        return if (currentUserId != null) {
+            // Personalized feed for logged-in users (cached in PersonalizedFeedService)
+            personalizedFeedService.getPersonalizedFeed(currentUserId, boardIds, pageable)
+        } else {
+            // Generic hot feed for anonymous users
+            getGenericHotFeed(boardIds, pageable)
+        }
+    }
+
+    /**
+     * Generic hot feed (no personalization)
+     * Used for anonymous users
+     */
+    private fun getGenericHotFeed(boardIds: List<Long>?, pageable: Pageable): PageDTO<PostResponseDTO> {
         // Get posts (filtered by boards if provided)
         val posts = if (boardIds.isNullOrEmpty()) {
             postRepository.findAll()
@@ -64,11 +79,9 @@ class PostService(
         // Sort by hot score descending
         val sortedPosts = posts.sortedByDescending { hotScores[it.id] ?: 0.0 }
 
-        // Convert to DTOs with vote information
-        val postDTOs = sortedPosts.map { post ->
-            post.toResponseDTO(voteRepository, currentUserId, userRepository)
-                .copy(hotScore = hotScores[post.id])
-        }
+        // Convert to DTOs using batch conversion
+        val postDTOs = sortedPosts.toResponseDTOs(voteRepository, null, userRepository)
+            .map { it.copy(hotScore = hotScores[it.id]) }
 
         // Apply pagination manually (since we sorted in memory)
         val start = pageable.offset.toInt()
@@ -79,7 +92,7 @@ class PostService(
             emptyList()
         }
 
-        // Convert to PageDTO for caching
+        // Convert to PageDTO
         return PageImpl(paginatedPosts, pageable, postDTOs.size.toLong()).toPageDTO()
     }
 
@@ -139,7 +152,10 @@ class PostService(
             .toResponseDTO(voteRepository, userId, userRepository)
     }
 
-    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
+    @CacheEvict(
+        value = [CacheConfig.FEED_CACHE, CacheConfig.PERSONALIZED_FEED_CACHE],
+        allEntries = true
+    )
     fun createPost(postRequestDTO: PostRequestDTO, file: MultipartFile?): PostResponseDTO {
         val currentUserId = securityUtils.getCurrentUserId()
         val user = userRepository.findById(currentUserId)
@@ -169,7 +185,10 @@ class PostService(
             .toResponseDTO(voteRepository, currentUserId, userRepository)
     }
 
-    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
+    @CacheEvict(
+        value = [CacheConfig.FEED_CACHE, CacheConfig.PERSONALIZED_FEED_CACHE],
+        allEntries = true
+    )
     fun update(
         postId: Long,
         updatedPostRequestDTO: PostRequestDTO,
@@ -222,7 +241,10 @@ class PostService(
             .toResponseDTO(voteRepository, userId, userRepository)
     }
 
-    @CacheEvict(value = [CacheConfig.FEED_CACHE], allEntries = true)
+    @CacheEvict(
+        value = [CacheConfig.FEED_CACHE, CacheConfig.PERSONALIZED_FEED_CACHE],
+        allEntries = true
+    )
     fun delete(postId: Long, userId: Long) {
         val post = postRepository.findById(postId)
             .orElseThrow { EntityNotFoundException("Post not found") }

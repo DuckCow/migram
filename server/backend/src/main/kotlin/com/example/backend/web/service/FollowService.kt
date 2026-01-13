@@ -1,5 +1,6 @@
 package com.example.backend.web.service
 
+import com.example.backend.web.config.CacheConfig
 import com.example.backend.web.model.Follow
 import com.example.backend.web.model.FollowStatus
 import com.example.backend.web.model.NotificationType
@@ -9,6 +10,7 @@ import com.example.backend.web.repository.FollowRepository
 import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.util.SecurityUtils
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -134,7 +136,15 @@ class FollowService(
 
     /**
      * Accept follow request (by target user)
+     * Invalidates caches: followed users list and personalized feeds
      */
+    @CacheEvict(
+        value = [
+            CacheConfig.FOLLOWED_USERS_CACHE,
+            CacheConfig.PERSONALIZED_FEED_CACHE
+        ],
+        allEntries = true
+    )
     fun acceptFollowRequest(requestId: Long): FollowRequestResult {
         val currentUserId = securityUtils.getCurrentUserId()
         val follow = followRepository.findById(requestId)
@@ -213,7 +223,15 @@ class FollowService(
 
     /**
      * Unfollow (delete ACCEPTED relationship)
+     * Invalidates caches: followed users list and personalized feeds
      */
+    @CacheEvict(
+        value = [
+            CacheConfig.FOLLOWED_USERS_CACHE,
+            CacheConfig.PERSONALIZED_FEED_CACHE
+        ],
+        allEntries = true
+    )
     fun unfollow(targetUserId: Long): Boolean {
         val currentUserId = securityUtils.getCurrentUserId()
         val requester = userRepository.findById(currentUserId)
