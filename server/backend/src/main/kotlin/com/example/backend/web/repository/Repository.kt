@@ -100,6 +100,76 @@ interface PostRepository : JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p WHERE p.board IN :boards")
     fun searchByBoards(boards: List<com.example.backend.web.model.Board>, pageable: Pageable): Page<Post>
 
+    // ==================== Full-Text Search (PostgreSQL) ====================
+
+    /**
+     * Full-text search using PostgreSQL ts_vector and ts_rank
+     * Searches both title (weight A) and content (weight B)
+     *
+     * Note: Uses native SQL because JPA/JPQL doesn't support PostgreSQL FTS functions
+     * Only works with PostgreSQL - dev profile (H2) uses LIKE search instead
+     *
+     * @param tsquery Search term in PostgreSQL tsquery format (e.g., "hello & world")
+     * @param pageable Pagination parameters
+     * @return Page of posts ranked by relevance
+     */
+    @Query(
+        value = """
+            SELECT p.*,
+                   ts_rank(setweight(p.title_search, 'A') || setweight(p.content_search, 'B'),
+                           to_tsquery('simple', :tsquery)) as rank
+            FROM post p
+            WHERE (setweight(p.title_search, 'A') || setweight(p.content_search, 'B'))
+                  @@ to_tsquery('simple', :tsquery)
+            ORDER BY rank DESC, p.created_at DESC
+        """,
+        countQuery = """
+            SELECT COUNT(*)
+            FROM post p
+            WHERE (setweight(p.title_search, 'A') || setweight(p.content_search, 'B'))
+                  @@ to_tsquery('simple', :tsquery)
+        """,
+        nativeQuery = true
+    )
+    fun fullTextSearch(
+        @org.springframework.data.repository.query.Param("tsquery") tsquery: String,
+        pageable: Pageable
+    ): Page<Post>
+
+    /**
+     * Full-text search with board filtering
+     *
+     * @param tsquery Search term in PostgreSQL tsquery format
+     * @param boardIds List of board IDs to filter by
+     * @param pageable Pagination parameters
+     * @return Page of posts ranked by relevance
+     */
+    @Query(
+        value = """
+            SELECT p.*,
+                   ts_rank(setweight(p.title_search, 'A') || setweight(p.content_search, 'B'),
+                           to_tsquery('simple', :tsquery)) as rank
+            FROM post p
+            WHERE (setweight(p.title_search, 'A') || setweight(p.content_search, 'B'))
+                  @@ to_tsquery('simple', :tsquery)
+              AND p.board_id IN (:boardIds)
+            ORDER BY rank DESC, p.created_at DESC
+        """,
+        countQuery = """
+            SELECT COUNT(*)
+            FROM post p
+            WHERE (setweight(p.title_search, 'A') || setweight(p.content_search, 'B'))
+                  @@ to_tsquery('simple', :tsquery)
+              AND p.board_id IN (:boardIds)
+        """,
+        nativeQuery = true
+    )
+    fun fullTextSearchByBoards(
+        @org.springframework.data.repository.query.Param("tsquery") tsquery: String,
+        @org.springframework.data.repository.query.Param("boardIds") boardIds: List<Long>,
+        pageable: Pageable
+    ): Page<Post>
+
     // ==================== Visibility-filtered queries ====================
 
     // Feed query: PUBLIC first, then LIMITED (de-ranked)

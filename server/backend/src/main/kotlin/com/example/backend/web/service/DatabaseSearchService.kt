@@ -7,6 +7,7 @@ import com.example.backend.web.repository.PostRepository
 import com.example.backend.web.repository.UserRepository
 import com.example.backend.web.repository.VoteRepository
 import com.example.backend.web.util.SecurityUtils
+import org.springframework.context.annotation.Profile
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -17,8 +18,12 @@ import java.time.format.DateTimeFormatter
 /**
  * Phase 1 Search Implementation
  * Uses LIKE queries for basic text search
+ *
+ * Only active when spring.profiles.active=dev (H2 database)
+ * Prod/test profiles use FullTextSearchService (PostgreSQL FTS)
  */
 @Service
+@Profile("dev")
 @Transactional(readOnly = true)
 class DatabaseSearchService(
     private val postRepository: PostRepository,
