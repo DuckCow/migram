@@ -18,7 +18,8 @@ class ModerationService(
     private val moderationActionRepository: ModerationActionRepository,
     private val postRepository: PostRepository,
     private val commentRepository: CommentRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val notificationService: NotificationService
 ) {
     private val logger = LoggerFactory.getLogger(ModerationService::class.java)
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -157,6 +158,23 @@ class ModerationService(
                 note = request.adminNote
             )
         )
+
+        // Notify reporter that their report was resolved
+        val statusMessage = when (request.status) {
+            ReportStatus.RESOLVED -> "Your report has been resolved. ${if (request.action != ModerationActionType.NO_ACTION) "Action taken: ${request.action}" else "No action was needed."}"
+            ReportStatus.REJECTED -> "Your report was reviewed and rejected."
+            ReportStatus.PENDING -> "" // Should not happen due to validation
+        }
+
+        if (statusMessage.isNotEmpty()) {
+            notificationService.createNotification(
+                recipientId = report.reporter.id,
+                actorId = adminId,
+                type = NotificationType.REPORT_RESOLVED,
+                referenceId = reportId,
+                message = statusMessage
+            )
+        }
 
         logger.info("Report ${report.id} reviewed by admin $adminId: ${request.status} / ${request.action}")
 
