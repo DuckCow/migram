@@ -1,6 +1,7 @@
 package com.example.backend.web.service
 
 import com.example.backend.web.config.CacheConfig
+import com.example.backend.web.model.NotificationType
 import com.example.backend.web.model.Vote
 import com.example.backend.web.model.VoteType
 import com.example.backend.web.repository.CommentRepository
@@ -21,7 +22,8 @@ class VoteService(
     private val postRepository: PostRepository,
     private val commentRepository: CommentRepository,
     private val userRepository: UserRepository,
-    private val securityUtils: SecurityUtils
+    private val securityUtils: SecurityUtils,
+    private val notificationService: NotificationService
 ) {
     /**
      * Toggle vote on a post
@@ -34,7 +36,8 @@ class VoteService(
             CacheConfig.VOTE_COUNT_CACHE,
             CacheConfig.HOT_SCORE_CACHE,
             CacheConfig.FEED_CACHE,
-            CacheConfig.USER_VOTES_CACHE
+            CacheConfig.USER_VOTES_CACHE,
+            CacheConfig.PERSONALIZED_FEED_CACHE  // Invalidate personalized feeds on vote
         ],
         allEntries = true
     )
@@ -47,7 +50,7 @@ class VoteService(
 
         val existingVote = voteRepository.findByUserAndPost(user, post)
 
-        return if (existingVote != null) {
+        val result = if (existingVote != null) {
             if (existingVote.voteType == voteType) {
                 // Same vote type clicked again -> remove vote
                 voteRepository.delete(existingVote)
@@ -63,6 +66,22 @@ class VoteService(
             voteRepository.save(Vote(user = user, post = post, voteType = voteType))
             VoteResult(voteType, getPostVoteCounts(postId))
         }
+
+        // Send notification at vote milestones (only for upvotes)
+        if (voteType == VoteType.UP && post.user.id != currentUserId) {
+            val netVotes = result.counts.netVotes
+            if (isVoteMilestone(netVotes)) {
+                notificationService.createNotification(
+                    recipientId = post.user.id,
+                    actorId = currentUserId,
+                    type = NotificationType.VOTE_ON_POST,
+                    referenceId = postId,
+                    message = "Your post reached $netVotes votes!"
+                )
+            }
+        }
+
+        return result
     }
 
     /**
@@ -81,7 +100,7 @@ class VoteService(
 
         val existingVote = voteRepository.findByUserAndComment(user, comment)
 
-        return if (existingVote != null) {
+        val result = if (existingVote != null) {
             if (existingVote.voteType == voteType) {
                 // Same vote type clicked again -> remove vote
                 voteRepository.delete(existingVote)
@@ -97,6 +116,22 @@ class VoteService(
             voteRepository.save(Vote(user = user, comment = comment, voteType = voteType))
             VoteResult(voteType, getCommentVoteCounts(commentId))
         }
+
+        // Send notification at vote milestones (only for upvotes)
+        if (voteType == VoteType.UP && comment.user.id != currentUserId) {
+            val netVotes = result.counts.netVotes
+            if (isVoteMilestone(netVotes)) {
+                notificationService.createNotification(
+                    recipientId = comment.user.id,
+                    actorId = currentUserId,
+                    type = NotificationType.VOTE_ON_COMMENT,
+                    referenceId = commentId,
+                    message = "Your comment reached $netVotes votes!"
+                )
+            }
+        }
+
+        return result
     }
 
     @Cacheable(value = [CacheConfig.VOTE_COUNT_CACHE], key = "'post-' + #postId")
@@ -133,6 +168,14 @@ class VoteService(
         val comment = commentRepository.findById(commentId)
             .orElseThrow { EntityNotFoundException("Comment not found") }
         return voteRepository.findByUserAndComment(user, comment)?.voteType
+    }
+
+    /**
+     * Check if a vote count is at a milestone (10, 50, 100, 500, 1000, etc.)
+     * Only notify at these milestones to avoid spam
+     */
+    private fun isVoteMilestone(netVotes: Long): Boolean {
+        return netVotes in setOf(10L, 50L, 100L, 500L, 1000L, 5000L, 10000L)
     }
 }
 
