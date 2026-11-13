@@ -121,7 +121,8 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 
 
-	systemProperty("api.version", "1.52")
+	// CI supplies the running Docker daemon API; preserve the local default.
+	systemProperty("api.version", providers.environmentVariable("DOCKER_API_VERSION").getOrElse("1.52"))
 
 
 	// Prevent test worker JVM shutdown hang (force cleanup after timeout)

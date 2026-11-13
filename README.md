@@ -119,6 +119,7 @@ JDK 17과 실행 중인 Docker가 필요합니다. 아래 명령은 저장소 �
 
 ```bash
 cd server/backend
+export DOCKER_API_VERSION="$(docker version --format '{{.Server.APIVersion}}')"
 ./gradlew test --tests '*TranslationRedisFallbackIT' --no-daemon
 # 전체 백엔드 테스트
 ./gradlew test --no-daemon
@@ -128,7 +129,7 @@ cd server/backend
 - [검색·알림·피드 등 통합 테스트](server/backend/src/test/kotlin/com/example/backend/web/service)
 - [GitHub Actions 설정](.github/workflows/integration-test.yml)
 
-현재 루트 CI는 번역 캐시 테스트를 대상으로 하며 해당 실행 단계에 `continue-on-error: true`가 있습니다. 워크플로 상태만으로 전체 테스트 통과를 판단하지 않고 테스트 보고서와 로그를 함께 확인해야 합니다.
+현재 루트 CI는 번역 캐시 테스트를 대상으로 합니다. 실행 중인 Docker 서버의 API 버전을 테스트 JVM에 전달하며, 테스트가 실패하면 워크플로도 실패합니다. 이 결과는 전체 백엔드 테스트의 통과를 의미하지 않으므로 테스트 보고서의 실행 범위를 함께 확인합니다.
 
 ## 현재 상태
 
