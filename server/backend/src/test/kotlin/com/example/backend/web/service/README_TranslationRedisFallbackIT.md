@@ -1,243 +1,44 @@
-# TranslationRedisFallbackIT - Integration Test Documentation
+# 번역 DB 캐시 통합 테스트
 
-## Overview
+[TranslationRedisFallbackIT.kt](TranslationRedisFallbackIT.kt)는 현재 [TranslationService](../../../../../../../main/kotlin/com/example/backend/web/service/TranslationService.kt)의 **DB 캐시 동작**을 확인합니다. 클래스 이름은 이전 명칭을 유지하고 있으며, 현재 서비스는 Spring Cache나 Redis를 통한 2단계 캐시를 사용하지 않습니다.
 
-`TranslationRedisFallbackIT` is a comprehensive integration test that verifies the **graceful degradation** behavior of the `TranslationService` when Redis is unavailable.
+## 검증 시나리오
 
-## Objective
+| 시나리오 | 코드에 정의된 확인 내용 |
+| --- | --- |
+| 첫 번역 요청 | 모의 번역 API 응답과 `cached=false` |
+| 번역 저장 | `content_translation` 조회로 저장 결과 확인 |
+| 동일 요청 재호출 | JPA flush/clear 후 DB 캐시 사용, HTTP 요청 수 증가가 1회인지 확인 |
+| 원문·대상 언어 동일 | 원문 반환, HTTP 요청 수 증가가 0회인지 확인 |
 
-Ensure that when Redis cache is configured but unreachable, the application:
-1. ✅ **Continues to function** without throwing 500 errors
-2. ✅ **Falls back to DB-only caching** (2-tier cache: Hot Redis fails → Warm DB succeeds)
-3. ✅ **Calls the Translation API only once** (subsequent requests use DB cache)
+## 테스트 환경
 
-## Test Scenarios
+- JDK 17, JUnit 5, Testcontainers, MockWebServer
+- 테스트 전용 `postgres:15-alpine` 컨테이너
+- Spring `test` 프로필, Flyway 비활성화, `ddl-auto=create-drop`
+- 테스트의 `@DynamicPropertySource`가 DB 연결과 번역 URL을 컨테이너 및 MockWebServer로 대체
+- [테스트 설정](../../../../../../resources/application-test.yml)에서 Spring Cache 비활성화
 
-### 1. Redis Fallback - Service Works Without Errors
-**When:** Redis is unavailable (misconfigured host/port)
-**Then:** `getTranslation()` completes successfully without 500 errors
+의존성 버전은 [build.gradle.kts](../../../../../../../../build.gradle.kts)를 기준으로 합니다.
 
-### 2. Translation Saved to DB Cache
-**When:** Redis is down and translation is requested
-**Then:** Translation is saved to `content_translation` table
+## 실행
 
-### 3. API Called Only Once (DB Cache Hit)
-**When:** Same translation requested twice with Redis down
-**Then:**
-- First call: Hits Translation API, saves to DB (cached = false)
-- Second call: Returns from DB cache (cached = true)
-- **Verify:** MockWebServer received exactly 1 request
-
-### 4. Same Language No-Op
-**When:** Source and target language are the same
-**Then:** Original text returned without API call (model = "none")
-
-## Technical Implementation
-
-### Dependencies Added
-
-```kotlin
-// build.gradle.kts
-testImplementation("org.testcontainers:testcontainers:1.19.0")
-testImplementation("org.testcontainers:junit-jupiter:1.19.0")
-testImplementation("org.testcontainers:postgresql:1.19.0")
-testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
-```
-
-### Test Configuration
-
-- **Spring Context:** `@SpringBootTest(webEnvironment = NONE)` - No web server needed
-- **Database:** PostgreSQL via Testcontainers (`PostgreSQLContainer`)
-- **Redis:** Configured but **intentionally unavailable** (wrong host: `invalid-redis-host-does-not-exist`)
-- **Translation API:** Mocked using OkHttp `MockWebServer`
-- **Flyway:** Disabled (using `ddl-auto=create-drop` for test)
-
-### Key Test Setup
-
-```kotlin
-@DynamicPropertySource
-fun configureProperties(registry: DynamicPropertyRegistry) {
-    // PostgreSQL (real database via Testcontainers)
-    registry.add("spring.datasource.url", postgres::getJdbcUrl)
-
-    // Redis (intentionally misconfigured to simulate unavailability)
-    registry.add("spring.cache.type") { "redis" }
-    registry.add("spring.data.redis.host") { "invalid-redis-host-does-not-exist" }
-    registry.add("spring.data.redis.port") { "6390" }
-
-    // Mock translation API
-    registry.add("translation.base-url") { mockWebServer.url("/").toString() }
-}
-```
-
-## Running the Test
-
-### Prerequisites
-
-1. **Docker Must Be Running**
-   - Testcontainers requires Docker to spin up PostgreSQL
-   - Verify: `docker ps` should work
-
-2. **Network Access**
-   - Test needs to pull `postgres:15-alpine` Docker image
-
-### Run Command
+Docker가 실행 중이고 테스트 이미지 다운로드가 가능한 환경에서, 저장소 루트 기준으로 실행합니다.
 
 ```bash
-# Run specific integration test
-./gradlew test --tests TranslationRedisFallbackIT
-
-# Run with verbose logging
-./gradlew test --tests TranslationRedisFallbackIT --info
-
-# Run all tests
-./gradlew test
+cd server/backend
+export DOCKER_API_VERSION="$(docker version --format '{{.Server.APIVersion}}')"
+./gradlew test --tests '*TranslationRedisFallbackIT' --no-daemon
 ```
 
-### Expected Output
+결과는 `server/backend/build/reports/tests/test/index.html`과 `server/backend/build/test-results/test/`에서 확인합니다.
 
-```
-TranslationRedisFallbackIT > Redis down → Service should fallback to DB cache PASSED
-TranslationRedisFallbackIT > Translation should be saved to DB cache PASSED
-TranslationRedisFallbackIT > Translation API should be called only ONCE PASSED
-TranslationRedisFallbackIT > Same source and target language PASSED
-```
+[현재 CI](../../../../../../../../../../.github/workflows/integration-test.yml)는 실행 중인 Docker 서버의 API 버전을 테스트 JVM에 전달하고 이 테스트를 실행합니다. 테스트 실패는 워크플로 실패로 반영되며, 개별 결과와 로그도 함께 확인합니다.
 
-## Troubleshooting
+## 검증 범위
 
-### Error: Docker not available
+이 테스트는 DB 캐시와 모의 HTTP 응답의 연동을 다룹니다. Redis 장애 복구, 실제 번역 품질, 운영 데이터베이스 마이그레이션, 캐시 TTL·원문 수정 후 무효화, 동시 삽입 충돌과 대규모 성능까지 입증하지는 않습니다.
 
-**Symptom:**
-```
-Could not find a valid Docker environment
-org.testcontainers.dockerclient.DockerClientProviderStrategy
-```
+테스트 성공 여부와 실행 시간은 해당 커밋의 CI 보고서에서 확인합니다. 특정 테스트의 통과를 전체 백엔드 검증 결과로 확대하지 않습니다.
 
-**Solution:**
-1. Start Docker Desktop
-2. Verify Docker is accessible: `docker ps`
-3. Ensure Docker socket permissions are correct
-
-### Error: Image pull failure
-
-**Symptom:**
-```
-Unable to pull postgres:15-alpine
-```
-
-**Solution:**
-1. Check internet connection
-2. Manually pull image: `docker pull postgres:15-alpine`
-3. Verify Docker Hub access
-
-### Error: Port already in use
-
-**Symptom:**
-```
-Bind for 0.0.0.0:5432 failed: port is already allocated
-```
-
-**Solution:**
-- Testcontainers uses random ports by default
-- If issue persists, stop other PostgreSQL containers: `docker stop $(docker ps -q --filter ancestor=postgres)`
-
-## CI/CD Configuration
-
-### GitHub Actions Example
-
-```yaml
-name: Integration Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'corretto'
-
-      - name: Run Integration Tests
-        run: ./gradlew test --tests TranslationRedisFallbackIT
-```
-
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────┐
-│ TranslationRedisFallbackIT (JUnit5)         │
-├─────────────────────────────────────────────┤
-│ ┌─────────────────┐   ┌─────────────────┐  │
-│ │ TranslationSvc  │   │ Redis (DOWN)    │  │
-│ │                 │──>│ invalid-host    │  │
-│ └────────┬────────┘   └─────────────────┘  │
-│          │ fallback                         │
-│          v                                  │
-│ ┌─────────────────────────────────────────┐ │
-│ │ PostgreSQL (Testcontainers)             │ │
-│ │ content_translation table               │ │
-│ └─────────────────────────────────────────┘ │
-│          ^                                  │
-│          │ API call (mocked)                │
-│ ┌────────┴────────┐                        │
-│ │ MockWebServer   │                        │
-│ │ (OkHttp)        │                        │
-│ └─────────────────┘                        │
-└─────────────────────────────────────────────┘
-```
-
-## Performance Characteristics
-
-- **Test Duration:** ~5-10 seconds (includes Docker container startup)
-- **Resource Usage:** ~512MB RAM (PostgreSQL container)
-- **Network:** Requires Docker image pull on first run (~50MB)
-
-## Future Improvements
-
-1. **Add Redis Recovery Test**
-   - Start Redis mid-test
-   - Verify cache warming from DB → Redis
-
-2. **Concurrent Request Test**
-   - Multiple threads requesting same translation
-   - Verify DB constraint handles race conditions
-
-3. **Batch Translation Test**
-   - Request translations for 100+ posts
-   - Verify DB caching reduces API calls
-
-## Related Documentation
-
-- [DEPLOYMENT.md](../../../../../../../../../DEPLOYMENT.md) - Redis Security & Fallback Testing section
-- [TranslationService.kt](../../../../../../main/kotlin/com/example/backend/web/service/TranslationService.kt) - Implementation
-- [Version-Based Cache Invalidation](../../../../../../main/resources/db/migration/V7__add_content_version.sql) - Migration
-
-## Maintainer Notes
-
-**When to Run:**
-- Before merging PRs that modify caching logic
-- After upgrading Redis/Spring Boot versions
-- Monthly as part of regression test suite
-
-**What This Test Does NOT Cover:**
-- Actual Redis availability (Redis is intentionally unavailable)
-- Network latency/timeout scenarios
-- Redis connection pool exhaustion
-
-For these scenarios, use manual testing or chaos engineering tools (e.g., Toxiproxy).
-
----
-
-**Last Updated:** 2025-12-28
-**Test Status:** ✅ Implementation Complete, ⚠️ Requires Docker Configuration
+[프로젝트 개요로 돌아가기](../../../../../../../../../../README.md)
