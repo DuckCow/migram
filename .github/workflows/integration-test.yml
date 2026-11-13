@@ -39,8 +39,12 @@
           run: chmod +x gradlew
           working-directory: server/backend
 
-        - name: Verify Docker is running
-          run: docker ps
+        - name: Configure Docker API for Testcontainers
+          run: |
+            docker ps
+            docker_api_version=$(docker version --format '{{.Server.APIVersion}}')
+            test -n "$docker_api_version"
+            echo "DOCKER_API_VERSION=$docker_api_version" >> "$GITHUB_ENV"
 
         - name: Run Integration Tests (with soft timeout and worker tracking)
           run: |
@@ -53,7 +57,6 @@
             echo "=== Gradle command completed (exit code: $TEST_EXIT_CODE) ==="
             exit $TEST_EXIT_CODE
           working-directory: server/backend
-          continue-on-error: true
 
         - name: Identify and dump test worker JVM (not Gradle daemon)
           if: always()
@@ -69,14 +72,14 @@
             echo "=== Searching for test worker PID ==="
 
             # Pattern 1: "Gradle Test Executor"
-            WORKER_PID=$(pgrep -f "Gradle Test Executor" | head -1)
+            WORKER_PID=$(pgrep -f "Gradle Test Executor" | head -1 || true)
             if [ -n "$WORKER_PID" ]; then
               echo "Found test worker by 'Gradle Test Executor': PID $WORKER_PID"
             fi
 
             # Pattern 2: GradleWorkerMain
             if [ -z "$WORKER_PID" ]; then
-              WORKER_PID=$(pgrep -f "GradleWorkerMain" | head -1)
+              WORKER_PID=$(pgrep -f "GradleWorkerMain" | head -1 || true)
               if [ -n "$WORKER_PID" ]; then
                 echo "Found test worker by 'GradleWorkerMain': PID $WORKER_PID"
               fi

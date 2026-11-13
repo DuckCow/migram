@@ -27,12 +27,13 @@ Docker가 실행 중이고 테스트 이미지 다운로드가 가능한 환경�
 
 ```bash
 cd server/backend
+export DOCKER_API_VERSION="$(docker version --format '{{.Server.APIVersion}}')"
 ./gradlew test --tests '*TranslationRedisFallbackIT' --no-daemon
 ```
 
 결과는 `server/backend/build/reports/tests/test/index.html`과 `server/backend/build/test-results/test/`에서 확인합니다.
 
-[현재 CI](../../../../../../../../../../.github/workflows/integration-test.yml)에도 이 테스트를 실행하는 단계가 있지만 `continue-on-error: true`가 설정되어 있습니다. 워크플로의 성공 표시만으로 테스트 성공을 판단하지 않고 개별 결과와 로그를 확인해야 합니다.
+[현재 CI](../../../../../../../../../../.github/workflows/integration-test.yml)는 실행 중인 Docker 서버의 API 버전을 테스트 JVM에 전달하고 이 테스트를 실행합니다. 테스트 실패는 워크플로 실패로 반영되며, 개별 결과와 로그도 함께 확인합니다.
 
 ## 검증 범위
 
